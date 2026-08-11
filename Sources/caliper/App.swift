@@ -11,6 +11,11 @@ struct CaliperApp: App {
         }
         .windowToolbarStyle(.unified)
         .commands {
+            CommandGroup(replacing: .saveItem) {
+                Button("Save Measurements") { doc.saveNow() }
+                    .keyboardShortcut("s")
+                    .disabled(doc.pages.isEmpty)
+            }
             CommandGroup(replacing: .undoRedo) {
                 Button("Undo") { doc.undo() }
                     .keyboardShortcut("z")
@@ -65,6 +70,12 @@ struct ContentView: View {
         .dropDestination(for: URL.self) { urls, _ in
             doc.open(urls)
             return true
+        }
+        .alert("Save", isPresented: Binding(get: { doc.saveReport != nil },
+                                            set: { if !$0 { doc.saveReport = nil } })) {
+            Button("OK") { doc.saveReport = nil }
+        } message: {
+            Text(doc.saveReport ?? "")
         }
     }
 

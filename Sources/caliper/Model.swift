@@ -20,6 +20,8 @@ struct Page: Identifiable {
     let id = UUID()
     let name: String
     let image: NSImage
+    let source: URL
+    let pageIndex: Int
     var segments: [Segment] = []
     var referenceID: Segment.ID?
     var referenceLength = 100.0
@@ -43,6 +45,7 @@ final class Document {
     var unit = "mm"
     var zoom = 1.0
     var viewport = CGSize.zero
+    var saveReport: String?
 
     private var undoStack: [[Page]] = []
     private var redoStack: [[Page]] = []
@@ -84,13 +87,55 @@ final class Document {
     }
 
     func open(_ urls: [URL]) {
-        let loaded = urls.flatMap(Loader.pages)
+        var loaded: [Page] = []
+        var pending: [Page.ID: Stored.Lender] = [:]
+        for url in urls {
+            var fresh = Loader.pages(from: url)
+            guard !fresh.isEmpty else { continue }
+            if let stored = Metadata.read(from: url) {
+                pending.merge(stored.apply(to: &fresh)) { first, _ in first }
+                unit = stored.unit
+            }
+            loaded.append(contentsOf: fresh)
+        }
         guard !loaded.isEmpty else { return }
         checkpoint()
         pages.append(contentsOf: loaded)
+        relink(pending)
         selectedPageID = loaded.first?.id
         selectedSegmentID = nil
         fitZoom()
+    }
+
+    func save() throws {
+        for (url, group) in Dictionary(grouping: pages, by: \.source) {
+            try Metadata.write(Stored.payload(for: group, unit: unit, lender: lender), to: url)
+        }
+    }
+
+    func saveNow() {
+        do {
+            try save()
+            saveReport = "Saved into \(Set(pages.map(\.source)).count) file(s)."
+        } catch {
+            saveReport = error.localizedDescription
+        }
+    }
+
+    private func lender(for id: Page.ID) -> Stored.Lender? {
+        guard let source = pages.first(where: { $0.id == id }) else { return nil }
+        return Stored.Lender(file: source.source.lastPathComponent, page: source.pageIndex)
+    }
+
+    private func relink(_ pending: [Page.ID: Stored.Lender]) {
+        for (id, lender) in pending {
+            guard let target = pages.first(where: {
+                      $0.source.lastPathComponent == lender.file && $0.pageIndex == lender.page
+                  }),
+                  let index = pages.firstIndex(where: { $0.id == id })
+            else { continue }
+            pages[index].scaleSource = target.id
+        }
     }
 
     func add(_ segment: Segment) {

@@ -13,7 +13,7 @@ enum Loader {
     private static func imagePage(from url: URL) -> [Page] {
         guard let image = NSImage(contentsOf: url), image.size.width > 0, image.size.height > 0
         else { return [] }
-        return [Page(name: url.lastPathComponent, image: image)]
+        return [Page(name: url.lastPathComponent, image: image, source: url, pageIndex: 0)]
     }
 
     private static func pdfPages(from url: URL) -> [Page] {
@@ -28,7 +28,7 @@ enum Loader {
             let name = pdf.pageCount == 1
                 ? url.lastPathComponent
                 : "\(url.lastPathComponent) — page \(index + 1)"
-            return Page(name: name, image: image)
+            return Page(name: name, image: image, source: url, pageIndex: index)
         }
     }
 }

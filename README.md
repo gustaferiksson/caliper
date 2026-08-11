@@ -40,8 +40,24 @@ Each page carries its own reference, and the **Reference** picker lets a page bo
 the scale of another page. Useful when several photos come from the same setup. A
 borrowing page cannot itself lend, so a scale never chains.
 
+## Saving
+
+⌘S writes the measurements back into the files you opened. There is no Caliper
+document and no sidecar.
+
+- **Images** get a real XMP packet under the `caliper` namespace. Any XMP-aware
+  tool can see it, and the file keeps its type and extension. The image is
+  re-encoded, so saving a JPEG costs one generation.
+- **PDFs** get a hidden note annotation instead. PDFKit exposes no XMP writer and
+  drops unknown Info-dictionary keys, so this is the only carrier that survives a
+  write without overwriting a user-visible field like Subject or Keywords.
+
+A page that borrows another page's scale records the lender by filename and page
+number. Reopen both files together and the link comes back; open the borrower alone
+and it falls back to pixels until you re-pick.
+
 ## Scope
 
-Proof of concept. No export, nothing saved to disk. Undo covers geometry and the
-reference choice, not the typed length or unit. PDF pages render at 3× their point
-size, so zooming far past 300% goes soft.
+Proof of concept. Undo covers geometry and the reference choice, not the typed
+length or unit. Saving is manual — nothing warns you about unsaved measurements on
+quit. PDF pages render at 3× their point size, so zooming far past 300% goes soft.
