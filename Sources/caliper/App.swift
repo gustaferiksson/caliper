@@ -97,13 +97,15 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             PageList(doc: doc)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
+                .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 240)
         } detail: {
             // The toolbar belongs to the detail column. On the split view itself,
             // SwiftUI spreads its items across the columns and the trailing button
             // lands over the sidebar.
             detail
                 .frame(minWidth: 420)
+                .navigationTitle(doc.page?.name ?? "Caliper")
+                .navigationSubtitle(pageCounter)
                 .toolbar { toolbar }
         }
         .inspector(isPresented: $inspecting) {
@@ -127,6 +129,16 @@ struct ContentView: View {
             Text(doc.saveReport ?? "")
         }
         .onReceive(NotificationCenter.default.publisher(for: .caliperExport)) { _ in exportNow() }
+    }
+
+    /// Preview's "Page 1 of 6", scoped to the file the current page came from.
+    private var pageCounter: String {
+        guard let page = doc.page else { return "" }
+        let group = doc.pages.filter { $0.source == page.source }
+        guard group.count > 1, let index = group.firstIndex(where: { $0.id == page.id }) else {
+            return ""
+        }
+        return "Page \(index + 1) of \(group.count)"
     }
 
     private func exportNow() {
@@ -185,32 +197,41 @@ struct PageList: View {
 
     var body: some View {
         List(selection: $doc.selectedPageID) {
-            ForEach(doc.pages) { page in
-                HStack(spacing: 8) {
-                    Image(nsImage: page.image)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 40, height: 40)
-                        .background(.white)
-                        .border(.separator)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(page.name).lineLimit(2)
-                        Text(summary(of: page)).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                .tag(page.id)
+            ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
+                thumbnail(index: index, page: page)
+                    .tag(page.id)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .help(page.name)
             }
         }
+        .listStyle(.sidebar)
         .onChange(of: doc.selectedPageID) { _, _ in
             doc.selectedSegmentID = nil
             doc.fitZoom()
         }
     }
 
-    private func summary(of page: Page) -> String {
-        let count = page.segments.count
-        let scale = doc.scale(of: page) == nil ? "no reference" : "scaled"
-        return "\(count) line\(count == 1 ? "" : "s") · \(scale)"
+    /// Preview's shape: the page itself is the row, numbered underneath.
+    private func thumbnail(index: Int, page: Page) -> some View {
+        let isSelected = page.id == doc.selectedPageID
+        return VStack(spacing: 4) {
+            Image(nsImage: page.image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 120, maxHeight: 140)
+                .background(.white)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(isSelected ? Color.accentColor : Color(.separatorColor),
+                                      lineWidth: isSelected ? 3 : 1)
+                }
+            Text("\(index + 1)")
+                .font(.caption)
+                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
     }
 }
 
