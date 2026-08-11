@@ -196,45 +196,44 @@ struct PageList: View {
     @Bindable var doc: Document
 
     /// A List, not a stack: it draws macOS's own selection and gives the arrow keys
-    /// page navigation for free. The row hugs its page, so the list stays dense.
+    /// page navigation for free.
     var body: some View {
-        GeometryReader { geo in
-            List(selection: $doc.selectedPageID) {
-                ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
-                    thumbnail(index: index, page: page, width: max(60, geo.size.width - 36))
-                        .tag(page.id)
-                        .listRowSeparator(.hidden)
-                        .help(page.name)
-                }
+        List(selection: $doc.selectedPageID) {
+            ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
+                thumbnail(index: index, page: page)
+                    .tag(page.id)
+                    .listRowSeparator(.hidden)
+                    .help(page.name)
             }
-            .listStyle(.sidebar)
-            .onChange(of: doc.selectedPageID) { _, _ in
-                doc.selectedSegmentID = nil
-                doc.fitZoom()
-            }
+        }
+        .listStyle(.sidebar)
+        .onChange(of: doc.selectedPageID) { _, _ in
+            doc.selectedSegmentID = nil
+            doc.fitZoom()
         }
     }
 
-    /// The page fills the sidebar's width; its height follows its own aspect.
-    private func thumbnail(index: Int, page: Page, width: CGFloat) -> some View {
-        let sheet = fitted(page.image.size, into: CGSize(width: width, height: width * 1.7))
+    /// aspectRatio + maxWidth, not a measured box: the page follows the column as it
+    /// is dragged, with no geometry to go stale.
+    /// Radii stay concentric: the page rounds by the selection's radius less the
+    /// gap between them, so the two curves run parallel.
+    private static let selectionRadius: CGFloat = 9
+    private static let inset: CGFloat = 4
+
+    private func thumbnail(index: Int, page: Page) -> some View {
+        let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
         return VStack(spacing: 4) {
             Image(nsImage: page.image)
                 .resizable()
                 .interpolation(.high)
-                .frame(width: sheet.width, height: sheet.height)
+                .aspectRatio(page.image.size, contentMode: .fit)
+                .frame(maxWidth: .infinity)
                 .background(.white)
-                .overlay { Rectangle().strokeBorder(Color(.separatorColor), lineWidth: 1) }
+                .clipShape(corner)
+                .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
             Text("\(index + 1)").font(.caption)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 3)
-    }
-
-    private func fitted(_ size: CGSize, into box: CGSize) -> CGSize {
-        guard size.width > 0, size.height > 0 else { return box }
-        let scale = min(box.width / size.width, box.height / size.height)
-        return CGSize(width: size.width * scale, height: size.height * scale)
+        .padding(Self.inset)
     }
 }
 
@@ -286,8 +285,10 @@ struct MeasurementList: View {
 
             Section {
                 Text("""
-                     ⇧ drag locks to 90°. Click a line, then drag a large dot or nudge it \
-                     with the arrow keys — ⇧ for 10 px, ⌥ to move the whole line.
+                     ⇧ drag locks to 90°. Click a line to take the whole line, or one of \
+                     its handles to take that end; arrows nudge whatever you took, ⇧ for \
+                     10 px. Drag a chosen line's body to slide it off the feature. \
+                     Esc deselects.
                      """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
