@@ -22,11 +22,15 @@ cat > "$BUNDLE/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key><string>caliper</string>
   <key>CFBundleIdentifier</key><string>dev.gustaf.caliper</string>
   <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundleShortVersionString</key><string>0.0.1</string>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
 </dict>
 </plist>
 PLIST
+
+mkdir -p "$BUNDLE/Contents/Resources"
+cp "$ROOT/icon/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
 
 pkill -x caliper 2>/dev/null || true
 open -n "$BUNDLE"

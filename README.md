@@ -1,5 +1,7 @@
 # Caliper
 
+<img src="icon/caliper.svg" width="96" align="right" alt="">
+
 Measure real-world distances on images and PDFs. A native macOS SwiftUI proof of concept.
 
 Preview, but with a ruler.
@@ -104,3 +106,8 @@ Quitting with unsaved measurements asks first.
 Proof of concept. Undo covers geometry and the reference choice, not the typed
 length, unit, or name. PDF pages render at 3× their point size, so zooming far past
 300% goes soft. How a free-text caption looks depends on the PDF reader.
+
+## Icon
+
+`icon/generate-icons.sh` renders `icon/caliper.svg` into `AppIcon.icns`.
+Needs `rsvg-convert` (`brew install librsvg`).
