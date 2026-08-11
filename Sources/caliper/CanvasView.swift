@@ -23,7 +23,7 @@ struct CanvasView: View {
 
     /// One slim black plus, unbroken through the centre.
     @MainActor private static let crosshair: Image = {
-        let side: CGFloat = 25
+        let side: CGFloat = 19
         let mid = side / 2
         let arms = NSBezierPath()
         arms.move(to: CGPoint(x: 0, y: mid))
@@ -63,6 +63,8 @@ struct CanvasView: View {
                 // exact image rect, so its named space maps 1:1 to image points.
                 ZStack { board }
                     .frame(minWidth: geo.size.width, minHeight: geo.size.height)
+                    // nil resets to the arrow, so the crosshair cannot leak past the image.
+                    .pointerStyle(nil)
             }
             .background(.quaternary)
             .onAppear {
@@ -134,6 +136,11 @@ struct CanvasView: View {
         .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow], action: arrow)
         .onKeyPress(keys: [.delete, .deleteForward]) { _ in
             doc.removeSelected()
+            return .handled
+        }
+        .onKeyPress(.escape) {
+            guard doc.selectedSegmentID != nil else { return .ignored }
+            doc.deselect()
             return .handled
         }
     }

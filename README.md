@@ -28,6 +28,7 @@ Measurements are numbered on the image and in the inspector.
 | drag the line body | slide the dimension off the feature |
 | arrows | nudge whatever is chosen, 1 px |
 | ⇧ arrows | nudge 10 px |
+| esc | deselect |
 | ⌫ | delete the selected measurement |
 | ⌘R | use the selected measurement as the reference |
 | ⌘Z / ⇧⌘Z | undo / redo |

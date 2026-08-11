@@ -265,6 +265,11 @@ final class Document {
         if selectedSegmentID == id { selectedSegmentID = nil }
     }
 
+    func deselect() {
+        selectedSegmentID = nil
+        selectedHandle = nil
+    }
+
     func removeSelected() {
         guard let selectedSegmentID else { return }
         remove(selectedSegmentID)
