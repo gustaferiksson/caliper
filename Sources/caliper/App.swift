@@ -99,9 +99,13 @@ struct ContentView: View {
             PageList(doc: doc)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         } detail: {
-            detail.frame(minWidth: 420)
+            // The toolbar belongs to the detail column. On the split view itself,
+            // SwiftUI spreads its items across the columns and the trailing button
+            // lands over the sidebar.
+            detail
+                .frame(minWidth: 420)
+                .toolbar { toolbar }
         }
-        .toolbar { toolbar }
         .inspector(isPresented: $inspecting) {
             MeasurementList(doc: doc)
                 .inspectorColumnWidth(min: 250, ideal: 290, max: 380)
@@ -168,7 +172,8 @@ struct ContentView: View {
             Button("Open…", systemImage: "folder") { importing = true }
                 .keyboardShortcut("o")
         }
-        ToolbarItem {
+        // HIG puts the inspector toggle at the trailing edge, above the inspector.
+        ToolbarItem(placement: .primaryAction) {
             Button("Inspector", systemImage: "sidebar.trailing") { inspecting.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
         }
