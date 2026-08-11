@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 extension Color {
-    static let defaultMeasurement = Color(hex: "#0A84FF") ?? .blue
+    /// Apple's Grape crayon.
+    static let defaultMeasurement = Color(hex: "#9437FF") ?? .purple
     /// The reference keeps its own colour so it stays legible whatever default is chosen.
     static let reference = Color(hex: "#FF9F0A") ?? .orange
 
@@ -16,7 +17,7 @@ extension Color {
     }
 
     var hex: String {
-        guard let srgb = NSColor(self).usingColorSpace(.sRGB) else { return "#0A84FF" }
+        guard let srgb = NSColor(self).usingColorSpace(.sRGB) else { return "#9437FF" }
         return String(format: "#%02X%02X%02X",
                       Int((srgb.redComponent * 255).rounded()),
                       Int((srgb.greenComponent * 255).rounded()),

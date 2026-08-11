@@ -22,7 +22,7 @@ struct CanvasView: View {
     private static let space = "board"
 
     /// One slim black plus, unbroken through the centre.
-    @MainActor private static let crosshair: Image = {
+    @MainActor private static let crosshair: NSCursor = {
         let side: CGFloat = 19
         let mid = side / 2
         let arms = NSBezierPath()
@@ -37,7 +37,7 @@ struct CanvasView: View {
         arms.lineWidth = 1
         arms.stroke()
         drawn.unlockFocus()
-        return Image(nsImage: drawn)
+        return NSCursor(image: drawn, hotSpot: NSPoint(x: mid, y: mid))
     }()
 
     private var boardSize: CGSize {
@@ -63,8 +63,6 @@ struct CanvasView: View {
                 // exact image rect, so its named space maps 1:1 to image points.
                 ZStack { board }
                     .frame(minWidth: geo.size.width, minHeight: geo.size.height)
-                    // nil resets to the arrow, so the crosshair cannot leak past the image.
-                    .pointerStyle(nil)
             }
             .background(.quaternary)
             .onAppear {
@@ -128,7 +126,7 @@ struct CanvasView: View {
             inside = true
             hovered = grip(near: imagePoint(location))
         }
-        .pointerStyle(hovered == nil ? .image(Self.crosshair, hotSpot: .center) : .grabIdle)
+        .background(CursorArea(cursor: hovered == nil ? Self.crosshair : .openHand))
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
@@ -157,12 +155,13 @@ struct CanvasView: View {
         return .handled
     }
 
-    /// Both conventions: ⌘ scroll as in browsers and Figma, ⌥ scroll as in Photoshop.
+    /// ⌥ with scroll zooms, as Photoshop, Illustrator and Affinity do.
     private func watchScroll() {
         guard scrollWatch == nil else { return }
         scrollWatch = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { event in
             let held = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard inside, held.contains(.command) || held.contains(.option) else { return event }
+            // ⌥ alone: the graphics-app convention, and it collides with nothing here.
+            guard inside, held.contains(.option) else { return event }
             let travel = event.hasPreciseScrollingDeltas
                 ? event.scrollingDeltaY / 120
                 : event.scrollingDeltaY / 12

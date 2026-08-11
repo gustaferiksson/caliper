@@ -38,7 +38,7 @@ Measurements are numbered on the image and in the inspector.
 | ⌘0 / ⌘9 | actual size, fit to window |
 | ⌘⌥I | show or hide the inspector |
 | corner badge | zoom menu and readout |
-| pinch, ⌘ or ⌥ scroll | zoom |
+| pinch, ⌥ scroll | zoom |
 
 Lines are drawn thin, with no halo, and end in a perpendicular tick so the measured
 point stays readable. Selection darkens the colour rather than changing any size, so

@@ -277,8 +277,11 @@ struct MeasurementList: View {
         let isSelected = segment.id == doc.selectedSegmentID
         return HStack(spacing: 6) {
             Text("\(index + 1)").foregroundStyle(.secondary).monospacedDigit()
-            TextField("Name", text: Binding(get: { doc.name(of: segment.id) },
-                                            set: { doc.setName($0, for: segment.id) }))
+            TextField("Name",
+                      text: Binding(get: { doc.name(of: segment.id) },
+                                    set: { doc.setName($0, for: segment.id) }),
+                      prompt: Text("Name"))
+                .labelsHidden()
                 .textFieldStyle(.plain)
                 .onTapGesture { doc.selectedSegmentID = segment.id }
             Text(doc.measurement(for: segment))
