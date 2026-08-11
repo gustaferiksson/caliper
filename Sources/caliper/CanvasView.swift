@@ -21,26 +21,18 @@ struct CanvasView: View {
 
     private static let space = "board"
 
-    /// A slim black cross with a white backing, as the ⇧⌘4 screen selector draws it.
+    /// One slim black plus, unbroken through the centre.
     @MainActor private static let crosshair: Image = {
         let side: CGFloat = 25
         let mid = side / 2
-        let gap: CGFloat = 3
         let arms = NSBezierPath()
         arms.move(to: CGPoint(x: 0, y: mid))
-        arms.line(to: CGPoint(x: mid - gap, y: mid))
-        arms.move(to: CGPoint(x: mid + gap, y: mid))
         arms.line(to: CGPoint(x: side, y: mid))
         arms.move(to: CGPoint(x: mid, y: 0))
-        arms.line(to: CGPoint(x: mid, y: mid - gap))
-        arms.move(to: CGPoint(x: mid, y: mid + gap))
         arms.line(to: CGPoint(x: mid, y: side))
 
         let drawn = NSImage(size: CGSize(width: side, height: side))
         drawn.lockFocus()
-        NSColor.white.withAlphaComponent(0.9).setStroke()
-        arms.lineWidth = 3
-        arms.stroke()
         NSColor.black.setStroke()
         arms.lineWidth = 1
         arms.stroke()
