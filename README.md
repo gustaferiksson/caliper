@@ -35,10 +35,17 @@ Measurements are numbered on the image and in the inspector.
 | ⌘+ ⌘− ⌘0 | zoom in, out, fit |
 | pinch | zoom |
 
+Every line ends in a perpendicular tick, so the measured point stays readable. The
+selected line swaps its ticks for open rings you can see through — the pointer never
+hides the point it is placing. A ring grows and the cursor changes to a grab hand
+when you are close enough to catch it.
+
 Only the selected line offers handles, so a drag near an old line starts a new
 measurement instead of moving it. Clicking a line makes the nearer endpoint active;
-that endpoint draws filled and takes the arrow keys. A run of arrow presses on one
-line collapses into a single undo step.
+that endpoint carries a filled pip and takes the arrow keys. A run of arrow presses
+on one line collapses into a single undo step.
+
+Labels sit beside their line, never across it.
 
 Name a measurement in the inspector and the name joins its label on the image.
 

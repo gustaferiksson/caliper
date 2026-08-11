@@ -8,6 +8,7 @@ struct CanvasView: View {
     @State private var grab: Grab?
     @State private var live: Segment?
     @State private var zoomBase: Double?
+    @State private var hovered: Overlay.Grip?
     @FocusState private var focused: Bool
 
     private enum Grab {
@@ -62,11 +63,17 @@ struct CanvasView: View {
                     referenceID: page.referenceID,
                     selectedID: doc.selectedSegmentID,
                     activeHandle: doc.selectedHandle,
+                    hovered: hovered,
                     scale: doc.zoom)
         }
         .frame(width: boardSize.width, height: boardSize.height)
         .coordinateSpace(.named(Self.space))
         .contentShape(Rectangle())
+        .onContinuousHover(coordinateSpace: .named(Self.space)) { phase in
+            guard case .active(let location) = phase else { hovered = nil; return }
+            hovered = grip(near: imagePoint(location))
+        }
+        .pointerStyle(hovered == nil ? .rectSelection : .grabIdle)
         .focusable()
         .focusEffectDisabled()
         .focused($focused)
@@ -126,13 +133,20 @@ struct CanvasView: View {
         CGPoint(x: p.x / doc.zoom, y: p.y / doc.zoom)
     }
 
-    private var tolerance: Double { 10 / doc.zoom }
+    private var tolerance: Double { 12 / doc.zoom }
 
-    /// Only the selected line offers handles — the one already showing the large dots.
-    private func begin(at point: CGPoint) -> Grab {
+    /// Only the selected line offers handles — the one already showing the rings.
+    private func grip(near point: CGPoint) -> Overlay.Grip? {
         let selected = page.segments.filter { $0.id == doc.selectedSegmentID }
-        guard let hit = handleHit(in: selected, near: point, tolerance: tolerance),
-              let held = selected.first
+        guard let hit = handleHit(in: selected, near: point, tolerance: tolerance) else {
+            return nil
+        }
+        return Overlay.Grip(id: hit.id, handle: hit.handle)
+    }
+
+    private func begin(at point: CGPoint) -> Grab {
+        guard let hit = grip(near: point),
+              let held = page.segments.first(where: { $0.id == hit.id })
         else { return .create(point) }
         doc.selectedHandle = hit.handle
         return .move(id: hit.id, handle: hit.handle,

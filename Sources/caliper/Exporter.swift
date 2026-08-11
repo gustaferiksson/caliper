@@ -41,7 +41,7 @@ enum Exporter {
         let sheet = ZStack(alignment: .topLeading) {
             Image(nsImage: page.image).resizable().interpolation(.high)
             Overlay(segments: page.segments, labels: labels, referenceID: page.referenceID,
-                    selectedID: nil, activeHandle: .end, scale: 1)
+                    selectedID: nil, activeHandle: .end, hovered: nil, scale: 1)
         }
         .frame(width: size.width, height: size.height)
 
