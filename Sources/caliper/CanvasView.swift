@@ -74,6 +74,7 @@ struct CanvasView: View {
             .onDisappear {
                 if let scrollWatch { NSEvent.removeMonitor(scrollWatch) }
                 scrollWatch = nil
+                NSCursor.arrow.set()
             }
             .onChange(of: geo.size) { _, size in doc.viewport = size }
             .overlay(alignment: .bottomLeading) { zoomReadout }
@@ -117,16 +118,19 @@ struct CanvasView: View {
         .frame(width: boardSize.width, height: boardSize.height)
         .coordinateSpace(.named(Self.space))
         .contentShape(Rectangle())
+        // Set the cursor on every move rather than once on entry: SwiftUI's hosting
+        // view resets it constantly, and a tracking area behind the content never wins.
         .onContinuousHover(coordinateSpace: .named(Self.space)) { phase in
             guard case .active(let location) = phase else {
                 hovered = nil
                 inside = false
+                NSCursor.arrow.set()
                 return
             }
             inside = true
             hovered = grip(near: imagePoint(location))
+            (hovered == nil ? Self.crosshair : NSCursor.openHand).set()
         }
-        .background(CursorArea(cursor: hovered == nil ? Self.crosshair : .openHand))
         .focusable()
         .focusEffectDisabled()
         .focused($focused)

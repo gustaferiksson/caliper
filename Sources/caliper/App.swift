@@ -195,36 +195,29 @@ struct ContentView: View {
 struct PageList: View {
     @Bindable var doc: Document
 
-    /// A plain stack, not a List: List paints its own selection block behind the
-    /// row, and Preview marks the page itself rather than the whole row.
+    /// A List, not a stack: it draws macOS's own selection and gives the arrow keys
+    /// page navigation for free. The row hugs its page, so the list stays dense.
     var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 2) {
+        GeometryReader { geo in
+            List(selection: $doc.selectedPageID) {
                 ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
-                    thumbnail(index: index, page: page)
-                        .contentShape(Rectangle())
-                        .onTapGesture { doc.selectedPageID = page.id }
+                    thumbnail(index: index, page: page, width: max(60, geo.size.width - 36))
+                        .tag(page.id)
+                        .listRowSeparator(.hidden)
                         .help(page.name)
                 }
             }
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity)
-        }
-        .onChange(of: doc.selectedPageID) { _, _ in
-            doc.selectedSegmentID = nil
-            doc.fitZoom()
+            .listStyle(.sidebar)
+            .onChange(of: doc.selectedPageID) { _, _ in
+                doc.selectedSegmentID = nil
+                doc.fitZoom()
+            }
         }
     }
 
-    private static let thumbWidth: CGFloat = 150
-    private static let thumbMaxHeight: CGFloat = 190
-
-    /// Preview's cell: the page always keeps a hairline edge, and the blue frame
-    /// wraps the page and its number rather than filling the row.
-    private func thumbnail(index: Int, page: Page) -> some View {
-        let isSelected = page.id == doc.selectedPageID
-        let sheet = fitted(page.image.size,
-                           into: CGSize(width: Self.thumbWidth, height: Self.thumbMaxHeight))
+    /// The page fills the sidebar's width; its height follows its own aspect.
+    private func thumbnail(index: Int, page: Page, width: CGFloat) -> some View {
+        let sheet = fitted(page.image.size, into: CGSize(width: width, height: width * 1.7))
         return VStack(spacing: 4) {
             Image(nsImage: page.image)
                 .resizable()
@@ -232,16 +225,10 @@ struct PageList: View {
                 .frame(width: sheet.width, height: sheet.height)
                 .background(.white)
                 .overlay { Rectangle().strokeBorder(Color(.separatorColor), lineWidth: 1) }
-            Text("\(index + 1)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text("\(index + 1)").font(.caption)
         }
-        .padding(5)
-        .overlay {
-            RoundedRectangle(cornerRadius: 7)
-                .strokeBorder(Color.accentColor, lineWidth: 3)
-                .opacity(isSelected ? 1 : 0)
-        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 3)
     }
 
     private func fitted(_ size: CGSize, into box: CGSize) -> CGSize {
