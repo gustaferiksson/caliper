@@ -10,80 +10,180 @@ struct CaliperApp: App {
             ContentView(doc: doc)
         }
         .windowToolbarStyle(.unified)
+        .commands {
+            CommandGroup(replacing: .undoRedo) {
+                Button("Undo") { doc.undo() }
+                    .keyboardShortcut("z")
+                    .disabled(!doc.canUndo)
+                Button("Redo") { doc.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+                    .disabled(!doc.canRedo)
+            }
+            CommandMenu("Measurement") {
+                Button("Delete") { doc.removeSelected() }
+                    .keyboardShortcut(.delete, modifiers: [])
+                    .disabled(doc.selectedSegmentID == nil)
+                Button("Use as Reference") {
+                    guard let id = doc.selectedSegmentID else { return }
+                    doc.toggleReference(id)
+                }
+                .keyboardShortcut("r")
+                .disabled(doc.selectedSegmentID == nil)
+                Divider()
+                Button("Zoom In") { doc.stepZoom(1.25) }.keyboardShortcut("+")
+                Button("Zoom Out") { doc.stepZoom(0.8) }.keyboardShortcut("-")
+                Button("Zoom to Fit") { doc.fitZoom() }.keyboardShortcut("0")
+            }
+        }
     }
 }
 
 struct ContentView: View {
     @Bindable var doc: Document
     @State private var importing = false
+    @State private var inspecting = true
 
     var body: some View {
         NavigationSplitView {
-            Sidebar(doc: doc)
-                .navigationSplitViewColumnWidth(min: 240, ideal: 280, max: 360)
+            PageList(doc: doc)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         } detail: {
-            CanvasView(doc: doc)
+            detail
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Tool", selection: $doc.tool) {
-                    ForEach(Tool.allCases) { tool in
-                        Label(tool.rawValue, systemImage: tool.symbol).tag(tool)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .disabled(doc.image == nil)
-            }
-            ToolbarItem {
-                Button("Open Image…", systemImage: "folder") { importing = true }
-                    .keyboardShortcut("o")
-            }
+        .toolbar { toolbar }
+        .inspector(isPresented: $inspecting) {
+            MeasurementList(doc: doc)
+                .inspectorColumnWidth(min: 250, ideal: 290, max: 380)
         }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.image]) { result in
-            guard case .success(let url) = result else { return }
-            doc.open(url)
+        .fileImporter(isPresented: $importing,
+                      allowedContentTypes: [.image, .pdf],
+                      allowsMultipleSelection: true) { result in
+            guard case .success(let urls) = result else { return }
+            doc.open(urls)
+        }
+        .dropDestination(for: URL.self) { urls, _ in
+            doc.open(urls)
+            return true
+        }
+    }
+
+    @ViewBuilder private var detail: some View {
+        if let page = doc.page {
+            CanvasView(doc: doc, page: page)
+        } else {
+            VStack(spacing: 8) {
+                Image(systemName: "ruler").font(.system(size: 40)).foregroundStyle(.tertiary)
+                Text("Drop images or PDFs here").foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.quaternary)
+        }
+    }
+
+    @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem {
+            Button("Open…", systemImage: "folder") { importing = true }
+                .keyboardShortcut("o")
+        }
+        ToolbarItemGroup {
+            Button("Zoom Out", systemImage: "minus.magnifyingglass") { doc.stepZoom(0.8) }
+            Button("Zoom to Fit", systemImage: "arrow.up.left.and.arrow.down.right") { doc.fitZoom() }
+            Button("Zoom In", systemImage: "plus.magnifyingglass") { doc.stepZoom(1.25) }
         }
     }
 }
 
-struct Sidebar: View {
+struct PageList: View {
+    @Bindable var doc: Document
+
+    var body: some View {
+        List(selection: $doc.selectedPageID) {
+            ForEach(doc.pages) { page in
+                HStack(spacing: 8) {
+                    Image(nsImage: page.image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 40, height: 40)
+                        .background(.white)
+                        .border(.separator)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(page.name).lineLimit(2)
+                        Text(summary(of: page)).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .tag(page.id)
+            }
+        }
+        .onChange(of: doc.selectedPageID) { _, _ in
+            doc.selectedSegmentID = nil
+            doc.fitZoom()
+        }
+    }
+
+    private func summary(of page: Page) -> String {
+        let count = page.segments.count
+        let scale = page.unitsPerPoint == nil ? "no reference" : "scaled"
+        return "\(count) line\(count == 1 ? "" : "s") · \(scale)"
+    }
+}
+
+struct MeasurementList: View {
     @Bindable var doc: Document
 
     var body: some View {
         Form {
-            Section("Reference") {
-                TextField("Known length", value: $doc.knownLength, format: .number)
+            Section("Scale") {
                 TextField("Unit", text: $doc.unit)
-                Text(doc.isCalibrated
-                     ? "Drag in Calibrate mode to move the reference."
-                     : "Drag across a known dimension in Calibrate mode.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if let page = doc.page, page.reference != nil {
+                    TextField("Reference length", value: $doc.referenceLength, format: .number)
+                } else {
+                    Text("Draw a line over a known dimension, then mark it as the reference.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Measurements") {
-                if doc.segments.isEmpty {
-                    Text("None yet").foregroundStyle(.secondary)
+                if doc.page?.segments.isEmpty ?? true {
+                    Text("Drag on the image to measure.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                ForEach(Array(doc.segments.enumerated()), id: \.element.id) { index, segment in
-                    HStack {
-                        Text("\(index + 1)").foregroundStyle(.secondary).monospacedDigit()
-                        Text(doc.label(for: segment)).monospacedDigit()
-                        Spacer()
-                        Button("Delete", systemImage: "trash") { doc.remove(segment) }
-                            .labelStyle(.iconOnly)
-                            .buttonStyle(.borderless)
-                    }
+                ForEach(Array((doc.page?.segments ?? []).enumerated()), id: \.element.id) { index, segment in
+                    row(index: index, segment: segment)
                 }
             }
 
             Section {
-                Text("Hold ⇧ while dragging to lock the line to 90°.")
+                Text("⇧ drag locks to 90°. Drag an endpoint to adjust. ⌘Z undoes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func row(index: Int, segment: Segment) -> some View {
+        let isReference = segment.id == doc.page?.referenceID
+        let isSelected = segment.id == doc.selectedSegmentID
+        return HStack(spacing: 6) {
+            Text("\(index + 1)").foregroundStyle(.secondary).monospacedDigit()
+            Text(doc.label(for: segment))
+                .monospacedDigit()
+                .foregroundStyle(isReference ? .orange : .primary)
+            Spacer()
+            Button("Use as reference", systemImage: isReference ? "ruler.fill" : "ruler") {
+                doc.toggleReference(segment.id)
+            }
+            .foregroundStyle(isReference ? .orange : .secondary)
+            Button("Delete", systemImage: "trash") { doc.remove(segment.id) }
+                .foregroundStyle(.secondary)
+        }
+        .labelStyle(.iconOnly)
+        .buttonStyle(.borderless)
+        .padding(.vertical, 2)
+        .listRowBackground(isSelected ? Color.accentColor.opacity(0.15) : nil)
+        .contentShape(Rectangle())
+        .onTapGesture { doc.selectedSegmentID = segment.id }
     }
 }

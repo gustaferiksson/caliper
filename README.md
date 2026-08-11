@@ -1,6 +1,6 @@
 # Caliper
 
-Measure real-world distances on an image. A native macOS SwiftUI proof of concept.
+Measure real-world distances on images and PDFs. A native macOS SwiftUI proof of concept.
 
 Preview, but with a ruler.
 
@@ -10,17 +10,30 @@ Preview, but with a ruler.
 ./run.sh
 ```
 
-1. Drop an image on the window, or press ⌘O.
-2. In **Calibrate** mode, drag a line across a dimension you know.
-3. Type that dimension and its unit in the sidebar.
-4. Switch to **Measure** and drag more lines. Each one shows its length.
+1. Drop images or PDFs on the window, or press ⌘O. A PDF adds one page per page.
+2. Drag on the image to draw a measurement. There is only one mode.
+3. In the inspector, mark any measurement as the reference and type its real length.
+   Every other measurement then reads in that unit.
 
-Hold ⇧ while dragging to lock a line to 90° — dead horizontal or dead vertical.
+## Keys and gestures
 
-Measurements are stored in image coordinates. Change the reference length or the
-unit at any time and every label recalculates.
+| | |
+|---|---|
+| ⇧ drag | lock the line to 90° |
+| drag an endpoint | move that handle |
+| click a line | select it |
+| ⌫ | delete the selected measurement |
+| ⌘R | use the selected measurement as the reference |
+| ⌘Z / ⇧⌘Z | undo / redo |
+| ⌘+ ⌘− ⌘0 | zoom in, out, fit |
+| pinch | zoom |
+
+Measurements are stored in image coordinates, per page. Change the reference, its
+length, or the unit at any time and every label recalculates. Each page carries its
+own reference, so a multi-page PDF can mix scales.
 
 ## Scope
 
-Proof of concept: images only, straight-line distances only. No zoom, no areas,
-no PDF, no export, nothing saved to disk.
+Proof of concept. No export, nothing saved to disk. Undo covers geometry and the
+reference choice, not the typed length or unit. PDF pages render at 3× their point
+size, so zooming far past 300% goes soft.
