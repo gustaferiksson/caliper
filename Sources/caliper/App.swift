@@ -80,6 +80,13 @@ struct CaliperApp: App {
                 .disabled(doc.selectedSegmentID == nil)
             }
             CommandGroup(after: .sidebar) {
+                Toggle("Pages", isOn: Binding(get: { doc.showsPages },
+                                              set: { doc.showsPages = $0 }))
+                    .keyboardShortcut("s", modifiers: [.command, .control])
+                Toggle("Inspector", isOn: Binding(get: { doc.showsInspector },
+                                                  set: { doc.showsInspector = $0 }))
+                    .keyboardShortcut("i", modifiers: [.command, .option])
+                Divider()
                 Button("Zoom In") { doc.stepZoom(1.25) }.keyboardShortcut("+")
                 Button("Zoom Out") { doc.stepZoom(0.8) }.keyboardShortcut("-")
                 Button("Actual Size") { doc.zoom = 1 }.keyboardShortcut("0")
@@ -92,7 +99,6 @@ struct CaliperApp: App {
 struct ContentView: View {
     @Bindable var doc: Document
     @State private var importing = false
-    @State private var inspecting = true
     @State private var columns = NavigationSplitViewVisibility.all
 
     var body: some View {
@@ -109,7 +115,7 @@ struct ContentView: View {
                 .navigationSubtitle(pageCounter)
                 .toolbar { toolbar }
         }
-        .inspector(isPresented: $inspecting) {
+        .inspector(isPresented: $doc.showsInspector) {
             MeasurementList(doc: doc)
                 .inspectorColumnWidth(min: 250, ideal: 290, max: 380)
         }
@@ -130,6 +136,9 @@ struct ContentView: View {
             Text(doc.saveReport ?? "")
         }
         .onReceive(NotificationCenter.default.publisher(for: .caliperExport)) { _ in exportNow() }
+        // The menu owns the shortcuts; the split view and the menu stay in step here.
+        .onChange(of: doc.showsPages) { _, shown in columns = shown ? .doubleColumn : .detailOnly }
+        .onChange(of: columns) { _, shown in doc.showsPages = shown != .detailOnly }
     }
 
     /// Preview's "Page 1 of 6", scoped to the file the current page came from.
@@ -185,16 +194,14 @@ struct ContentView: View {
             // Only once the column is gone: while it is open the sidebar's own toggle
             // sits over it, which is where macOS puts it.
             if columns == .detailOnly {
-                Button("Pages", systemImage: "sidebar.leading") { columns = .doubleColumn }
-                    .keyboardShortcut("s", modifiers: [.command, .control])
+                Button("Pages", systemImage: "sidebar.leading") { doc.showsPages = true }
             }
             Button("Open…", systemImage: "folder") { importing = true }
                 .keyboardShortcut("o")
         }
         // HIG puts the inspector toggle at the trailing edge, above the inspector.
         ToolbarItem(placement: .primaryAction) {
-            Button("Inspector", systemImage: "sidebar.trailing") { inspecting.toggle() }
-                .keyboardShortcut("i", modifiers: [.command, .option])
+            Button("Inspector", systemImage: "sidebar.trailing") { doc.showsInspector.toggle() }
         }
     }
 }

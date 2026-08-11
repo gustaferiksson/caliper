@@ -56,6 +56,8 @@ final class Document {
     var zoom = 1.0
     var viewport = CGSize.zero
     var saveReport: String?
+    var showsPages = true
+    var showsInspector = true
     private(set) var dirty = false
 
     private var undoStack: [[Page]] = []
