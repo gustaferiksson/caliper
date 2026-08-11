@@ -97,7 +97,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             PageList(doc: doc)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 205, max: 300)
+                .navigationSplitViewColumnWidth(min: 110, ideal: 205, max: 400)
         } detail: {
             // The toolbar belongs to the detail column. On the split view itself,
             // SwiftUI spreads its items across the columns and the trailing button
@@ -159,7 +159,7 @@ struct ContentView: View {
         })
         do {
             try Exporter.export(pages: group, labels: labels, captions: captions,
-                                tint: doc.lineColor, to: url)
+                                tint: doc.lineColor, weight: doc.lineWidth, to: url)
             doc.saveReport = "Exported \(url.lastPathComponent)."
         } catch {
             doc.saveReport = error.localizedDescription
@@ -222,15 +222,17 @@ struct PageList: View {
 
     private func thumbnail(index: Int, page: Page) -> some View {
         let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
+        let ratio = page.image.size.width / page.image.size.height
         return VStack(spacing: 4) {
-            Image(nsImage: page.image)
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(page.image.size, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .background(.white)
+            // Colour first, image as an overlay: a resizable Image carries the page's
+            // natural size into layout, and squeezing that inside a split view loops
+            // AppKit's constraint solver until it aborts.
+            Color.white
+                .aspectRatio(ratio, contentMode: .fit)
+                .overlay { Image(nsImage: page.image).resizable().interpolation(.high) }
                 .clipShape(corner)
                 .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
+                .frame(maxWidth: .infinity)
             Text("\(index + 1)").font(.caption)
         }
         .padding(Self.inset)
@@ -245,6 +247,9 @@ struct MeasurementList: View {
             Section("Scale") {
                 TextField("Unit", text: $doc.unit)
                 ColorPicker("Measurement colour", selection: $doc.lineColor, supportsOpacity: false)
+                Slider(value: $doc.lineWidth, in: 1...5, step: 0.5) {
+                    Text("Measurement width")
+                }
                 Picker("Reference", selection: $doc.scaleSource) {
                     Text("This page").tag(nil as Page.ID?)
                     ForEach(doc.scaleLenders) { lender in

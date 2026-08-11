@@ -9,6 +9,7 @@ struct Overlay: View {
     let activeHandle: Handle?
     let hovered: Grip?
     let tint: Color
+    let weight: CGFloat
     let scale: Double
 
     struct Grip: Equatable {
@@ -18,8 +19,7 @@ struct Overlay: View {
 
     /// Everything here keeps one size on screen at every zoom. Selection changes
     /// shade, never size, so nothing shifts under the pointer.
-    private static let lineWidth: CGFloat = 1.5
-    private static let tickLength: CGFloat = 5
+    private static let tickLength: CGFloat = 7
     private static let handleSide: CGFloat = 11
     private static let witnessGap: CGFloat = 3
     private static let witnessOvershoot: CGFloat = 4
@@ -57,15 +57,15 @@ struct Overlay: View {
 
         if reach > 1 {
             witness(ctx, from: [a, b], along: out, reach: reach, color: color,
-                    weight: isSelected ? 2 : Self.lineWidth)
+                    weight: weight)
         }
 
         var body = Path()
         body.move(to: head)
         body.addLine(to: tail)
         // Ticks are collinear with the witness lines, so an offset line would merge
-        // the two into an L. Offset: witness marks the end. Selected: the square does.
-        if reach <= 1 && !isSelected {
+        // the two into an L; there the witness marks the end instead.
+        if reach <= 1 {
             for cap in [head, tail] {
                 body.move(to: CGPoint(x: cap.x - across.x * Self.tickLength,
                                       y: cap.y - across.y * Self.tickLength))
@@ -73,13 +73,11 @@ struct Overlay: View {
                                          y: cap.y + across.y * Self.tickLength))
             }
         }
-        ctx.stroke(body, with: .color(color), lineWidth: Self.lineWidth)
+        ctx.stroke(body, with: .color(color), lineWidth: weight)
 
         if isSelected {
-            let along = CGPoint(x: across.y, y: -across.x)
             for (handle, cap) in [(Handle.start, a), (Handle.end, b)] {
-                grip(ctx, at: cap, base: base, handle: handle, on: segment.id,
-                     along: along, across: across)
+                grip(ctx, at: cap, base: base, handle: handle, on: segment.id)
             }
         }
         caption(ctx, number: number, text: text, between: head, and: tail,
@@ -111,26 +109,19 @@ struct Overlay: View {
         return CGPoint(x: -dy / length, y: dx / length)
     }
 
-    /// An open square turned to the line, so its end edges read as the flat end and
-    /// the measured point stays visible under the pointer.
+    /// A small anchor node, as vector editors draw them: white until it is the end
+    /// the arrow keys will move, then solid.
     private func grip(_ ctx: GraphicsContext, at p: CGPoint, base: Color,
-                      handle: Handle, on id: Segment.ID, along: CGPoint, across: CGPoint) {
+                      handle: Handle, on id: Segment.ID) {
+        // One size, always: a node that grows under the pointer shifts the very
+        // point you are aiming at. Hover darkens instead.
         let isHovered = hovered == Grip(id: id, handle: handle)
         let color = base.darkened(by: isHovered ? Self.hoveredShade : Self.selectedShade)
-        let half = Self.handleSide / 2
-        func corner(_ u: CGFloat, _ v: CGFloat) -> CGPoint {
-            CGPoint(x: p.x + along.x * half * u + across.x * half * v,
-                    y: p.y + along.y * half * u + across.y * half * v)
-        }
-        var box = Path()
-        box.move(to: corner(1, 1))
-        box.addLine(to: corner(1, -1))
-        box.addLine(to: corner(-1, -1))
-        box.addLine(to: corner(-1, 1))
-        box.closeSubpath()
-        ctx.stroke(box, with: .color(color), lineWidth: Self.lineWidth)
-        guard handle == activeHandle else { return }
-        ctx.fill(Path(CGRect(x: p.x - 2, y: p.y - 2, width: 4, height: 4)), with: .color(color))
+        let side = Self.handleSide
+        let box = CGRect(x: p.x - side / 2, y: p.y - side / 2, width: side, height: side)
+        let node = Path(roundedRect: box, cornerRadius: 1.5)
+        ctx.fill(node, with: .color(handle == activeHandle ? color : .white))
+        ctx.stroke(node, with: .color(handle == activeHandle ? .white : color), lineWidth: 1.5)
     }
 
     /// The number rides its own badge outside the value box, or it reads as part of

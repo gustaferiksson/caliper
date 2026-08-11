@@ -52,6 +52,7 @@ final class Document {
     var selectedHandle: Handle?
     var unit = "mm" { didSet { if unit != oldValue { dirty = true } } }
     var lineColor = Color.defaultMeasurement { didSet { if lineColor != oldValue { dirty = true } } }
+    var lineWidth = 1.5 { didSet { if lineWidth != oldValue { dirty = true } } }
     var zoom = 1.0
     var viewport = CGSize.zero
     var saveReport: String?
@@ -169,6 +170,7 @@ final class Document {
                 pending.merge(stored.apply(to: &fresh)) { first, _ in first }
                 unit = stored.unit
                 if let hex = stored.color, let restored = Color(hex: hex) { lineColor = restored }
+                if let width = stored.width { lineWidth = width }
             }
             loaded.append(contentsOf: fresh)
         }
@@ -185,7 +187,8 @@ final class Document {
 
     func save() throws {
         for (url, group) in Dictionary(grouping: pages, by: \.source) {
-            let payload = Stored.payload(for: group, unit: unit, color: lineColor.hex, lender: lender)
+            let payload = Stored.payload(for: group, unit: unit, color: lineColor.hex,
+                                         width: lineWidth, lender: lender)
             try Metadata.write(payload, to: url)
         }
     }

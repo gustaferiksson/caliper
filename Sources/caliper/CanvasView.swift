@@ -113,6 +113,7 @@ struct CanvasView: View {
                     activeHandle: doc.selectedHandle,
                     hovered: hovered,
                     tint: doc.lineColor,
+                    weight: doc.lineWidth,
                     scale: doc.zoom)
         }
         .frame(width: boardSize.width, height: boardSize.height)

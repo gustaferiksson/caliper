@@ -29,13 +29,14 @@ struct Stored: Codable {
     var version = 1
     var unit: String
     var color: String?
+    var width: Double?
     var sheets: [Sheet]
 }
 
 extension Stored {
-    static func payload(for pages: [Page], unit: String, color: String,
+    static func payload(for pages: [Page], unit: String, color: String, width: Double,
                         lender: (Page.ID) -> Lender?) -> Stored {
-        Stored(unit: unit, color: color, sheets: pages.map { page in
+        Stored(unit: unit, color: color, width: width, sheets: pages.map { page in
             Sheet(page: page.pageIndex,
                   lines: page.segments.map {
                       Line(x1: $0.start.x, y1: $0.start.y, x2: $0.end.x, y2: $0.end.y,

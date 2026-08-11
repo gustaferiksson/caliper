@@ -28,22 +28,24 @@ enum Exporter {
     }
 
     static func export(pages: [Page], labels: [Page.ID: [String]], captions: [Page.ID: [String]],
-                       tint: Color, to url: URL) throws {
+                       tint: Color, weight: Double, to url: URL) throws {
         guard let first = pages.first else { throw ExportError.render }
         if isPDF(first) {
-            try exportPDF(pages: pages, labels: labels, tint: tint, to: url)
+            try exportPDF(pages: pages, labels: labels, tint: tint, weight: weight, to: url)
         } else {
-            try exportImage(page: first, captions: captions[first.id] ?? [], tint: tint, to: url)
+            try exportImage(page: first, captions: captions[first.id] ?? [], tint: tint,
+                            weight: weight, to: url)
         }
     }
 
     private static func exportImage(page: Page, captions: [String], tint: Color,
-                                    to url: URL) throws {
+                                    weight: Double, to url: URL) throws {
         let size = page.image.size
         let sheet = ZStack(alignment: .topLeading) {
             Image(nsImage: page.image).resizable().interpolation(.high)
             Overlay(segments: page.segments, captions: captions, referenceID: page.referenceID,
-                    selectedID: nil, activeHandle: .end, hovered: nil, tint: tint, scale: 1)
+                    selectedID: nil, activeHandle: nil, hovered: nil, tint: tint,
+                    weight: weight, scale: 1)
         }
         .frame(width: size.width, height: size.height)
 
@@ -63,7 +65,7 @@ enum Exporter {
     }
 
     private static func exportPDF(pages: [Page], labels: [Page.ID: [String]], tint: Color,
-                                  to url: URL) throws {
+                                  weight: Double, to url: URL) throws {
         guard let source = pages.first?.source, let pdf = PDFDocument(url: source) else {
             throw ExportError.write(url.lastPathComponent)
         }
@@ -73,7 +75,7 @@ enum Exporter {
             for (index, segment) in page.segments.enumerated() {
                 let label = labels[page.id]?.indices.contains(index) == true
                     ? labels[page.id]![index] : ""
-                add(segment, label: label, tint: tint,
+                add(segment, label: label, tint: tint, weight: weight,
                     isReference: segment.id == page.referenceID, to: sheet, box: box)
             }
         }
@@ -93,7 +95,8 @@ enum Exporter {
                height: min(rect.height, box.height))
     }
 
-    private static func add(_ segment: Segment, label: String, tint: Color, isReference: Bool,
+    private static func add(_ segment: Segment, label: String, tint: Color, weight: Double,
+                            isReference: Bool,
                             to sheet: PDFPage, box: CGRect) {
         let a = pdfPoint(segment.start, box: box)
         let b = pdfPoint(segment.end, box: box)
@@ -105,7 +108,7 @@ enum Exporter {
         line.color = colour
         line.contents = label
         line.border = PDFBorder()
-        line.border?.lineWidth = 2
+        line.border?.lineWidth = weight
         sheet.addAnnotation(line)
 
         guard !label.isEmpty else { return }

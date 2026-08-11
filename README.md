@@ -58,8 +58,8 @@ points actually measured. The value never changes — only where the line is dra
 Labels sit beside their line, never across it, and the measurement number rides its
 own badge outside the value box so it cannot be read as part of the value.
 
-**Measurement colour** in the inspector sets the colour for every measurement, and
-saves with the file. The reference keeps its own colour so it stays distinct.
+**Measurement colour** and **width** in the inspector apply to every measurement and
+save with the file. The reference keeps its own colour so it stays distinct.
 
 Name a measurement in the inspector and the name joins its label on the image.
 
