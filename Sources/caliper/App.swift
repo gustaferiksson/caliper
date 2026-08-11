@@ -93,11 +93,14 @@ struct ContentView: View {
     @Bindable var doc: Document
     @State private var importing = false
     @State private var inspecting = true
+    @State private var columns = NavigationSplitViewVisibility.all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columns) {
             PageList(doc: doc)
                 .navigationSplitViewColumnWidth(min: 110, ideal: 205, max: 400)
+                // Ours lives in the detail toolbar instead, or it vanishes with the column.
+                .toolbar(removing: .sidebarToggle)
         } detail: {
             // The toolbar belongs to the detail column. On the split view itself,
             // SwiftUI spreads its items across the columns and the trailing button
@@ -180,7 +183,11 @@ struct ContentView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
+        ToolbarItemGroup(placement: .navigation) {
+            Button("Pages", systemImage: "sidebar.leading") {
+                columns = columns == .detailOnly ? .all : .detailOnly
+            }
+            .keyboardShortcut("s", modifiers: [.command, .control])
             Button("Open…", systemImage: "folder") { importing = true }
                 .keyboardShortcut("o")
         }

@@ -38,6 +38,7 @@ Measurements are numbered on the image and in the inspector.
 | ⌘W | close the current file |
 | ⌘+ ⌘− | zoom in, out |
 | ⌘0 / ⌘9 | actual size, fit to window |
+| ⌃⌘S | show or hide the page sidebar |
 | ⌘⌥I | show or hide the inspector |
 | corner badge | zoom menu and readout |
 | pinch, ⌥ scroll | zoom |
