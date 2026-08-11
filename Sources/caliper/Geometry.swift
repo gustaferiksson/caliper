@@ -43,3 +43,23 @@ func handleHit(in segments: [Segment], near p: CGPoint, tolerance: Double)
 func segmentHit(in segments: [Segment], near p: CGPoint, tolerance: Double) -> Segment.ID? {
     segments.reversed().first { distance(from: p, to: $0) <= tolerance }?.id
 }
+
+/// Unit vector perpendicular to the segment, in the same space as its points.
+func normal(of segment: Segment) -> CGPoint {
+    let dx = segment.end.x - segment.start.x
+    let dy = segment.end.y - segment.start.y
+    let length = max(hypot(dx, dy), 0.001)
+    return CGPoint(x: -dy / length, y: dx / length)
+}
+
+/// Where the dimension line is actually drawn, once its offset is applied.
+func displaced(_ segment: Segment) -> Segment {
+    guard segment.offset != 0 else { return segment }
+    let n = normal(of: segment)
+    var moved = segment
+    moved.start = CGPoint(x: segment.start.x + n.x * segment.offset,
+                          y: segment.start.y + n.y * segment.offset)
+    moved.end = CGPoint(x: segment.end.x + n.x * segment.offset,
+                        y: segment.end.y + n.y * segment.offset)
+    return moved
+}

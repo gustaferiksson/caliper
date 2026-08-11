@@ -9,6 +9,7 @@ struct Stored: Codable {
         var x2: Double
         var y2: Double
         var name: String?
+        var offset: Double?
     }
 
     /// A lender in another file, named so it can be relinked when both files are open.
@@ -27,16 +28,19 @@ struct Stored: Codable {
 
     var version = 1
     var unit: String
+    var color: String?
     var sheets: [Sheet]
 }
 
 extension Stored {
-    static func payload(for pages: [Page], unit: String, lender: (Page.ID) -> Lender?) -> Stored {
-        Stored(unit: unit, sheets: pages.map { page in
+    static func payload(for pages: [Page], unit: String, color: String,
+                        lender: (Page.ID) -> Lender?) -> Stored {
+        Stored(unit: unit, color: color, sheets: pages.map { page in
             Sheet(page: page.pageIndex,
                   lines: page.segments.map {
                       Line(x1: $0.start.x, y1: $0.start.y, x2: $0.end.x, y2: $0.end.y,
-                           name: $0.name.isEmpty ? nil : $0.name)
+                           name: $0.name.isEmpty ? nil : $0.name,
+                           offset: $0.offset == 0 ? nil : $0.offset)
                   },
                   reference: page.segments.firstIndex { $0.id == page.referenceID },
                   referenceLength: page.referenceLength,
@@ -51,7 +55,7 @@ extension Stored {
             guard let index = pages.firstIndex(where: { $0.pageIndex == sheet.page }) else { continue }
             pages[index].segments = sheet.lines.map {
                 Segment(start: CGPoint(x: $0.x1, y: $0.y1), end: CGPoint(x: $0.x2, y: $0.y2),
-                        name: $0.name ?? "")
+                        name: $0.name ?? "", offset: $0.offset ?? 0)
             }
             pages[index].referenceLength = sheet.referenceLength
             if let reference = sheet.reference, pages[index].segments.indices.contains(reference) {

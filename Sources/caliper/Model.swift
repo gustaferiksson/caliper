@@ -1,17 +1,21 @@
 import AppKit
 import Observation
+import SwiftUI
 
 struct Segment: Identifiable, Hashable {
     let id: UUID
     var start: CGPoint
     var end: CGPoint
     var name: String
+    /// Signed distance the dimension line is pushed off the measured points.
+    var offset: Double
 
-    init(id: UUID = UUID(), start: CGPoint, end: CGPoint, name: String = "") {
+    init(id: UUID = UUID(), start: CGPoint, end: CGPoint, name: String = "", offset: Double = 0) {
         self.id = id
         self.start = start
         self.end = end
         self.name = name
+        self.offset = offset
     }
 
     var length: Double { hypot(end.x - start.x, end.y - start.y) }
@@ -44,8 +48,10 @@ final class Document {
     var pages: [Page] = []
     var selectedPageID: Page.ID?
     var selectedSegmentID: Segment.ID?
-    var selectedHandle: Handle = .end
+    /// nil means the whole line is chosen rather than one of its ends.
+    var selectedHandle: Handle?
     var unit = "mm" { didSet { if unit != oldValue { dirty = true } } }
+    var lineColor = Color.defaultMeasurement { didSet { if lineColor != oldValue { dirty = true } } }
     var zoom = 1.0
     var viewport = CGSize.zero
     var saveReport: String?
@@ -95,9 +101,20 @@ final class Document {
         return measurement(for: segment, on: page)
     }
 
+    /// Name and value only — the number rides its own badge on the canvas.
+    func caption(for segment: Segment, on page: Page) -> String {
+        [segment.name, measurement(for: segment, on: page)]
+            .filter { !$0.isEmpty }
+            .joined(separator: "  ")
+    }
+
+    func caption(for segment: Segment) -> String {
+        guard let page else { return measurement(for: segment) }
+        return caption(for: segment, on: page)
+    }
+
     func label(for segment: Segment, number: Int, on page: Page) -> String {
-        let parts = [String(number), segment.name, measurement(for: segment, on: page)]
-        return parts.filter { !$0.isEmpty }.joined(separator: "  ")
+        "\(number)  \(caption(for: segment, on: page))"
     }
 
     func label(for segment: Segment, number: Int) -> String {
@@ -151,6 +168,7 @@ final class Document {
             if let stored = Metadata.read(from: url) {
                 pending.merge(stored.apply(to: &fresh)) { first, _ in first }
                 unit = stored.unit
+                if let hex = stored.color, let restored = Color(hex: hex) { lineColor = restored }
             }
             loaded.append(contentsOf: fresh)
         }
@@ -167,7 +185,8 @@ final class Document {
 
     func save() throws {
         for (url, group) in Dictionary(grouping: pages, by: \.source) {
-            try Metadata.write(Stored.payload(for: group, unit: unit, lender: lender), to: url)
+            let payload = Stored.payload(for: group, unit: unit, color: lineColor.hex, lender: lender)
+            try Metadata.write(payload, to: url)
         }
     }
 
@@ -211,19 +230,20 @@ final class Document {
         }
     }
 
-    /// A run of arrow presses on one line collapses into a single undo step.
-    func nudge(dx: Double, dy: Double, wholeLine: Bool) {
+    /// Arrows move whatever is chosen: one handle, or the whole line.
+    /// A run of presses on one line collapses into a single undo step.
+    func nudge(dx: Double, dy: Double) {
         guard let id = selectedSegmentID else { return }
+        let handle = selectedHandle
         mutate(undoable: nudged != id) { page in
             guard let index = page.segments.firstIndex(where: { $0.id == id }) else { return }
-            let shift = CGPoint(x: dx, y: dy)
-            if wholeLine || selectedHandle == .start {
-                page.segments[index].start.x += shift.x
-                page.segments[index].start.y += shift.y
+            if handle != .end {
+                page.segments[index].start.x += dx
+                page.segments[index].start.y += dy
             }
-            if wholeLine || selectedHandle == .end {
-                page.segments[index].end.x += shift.x
-                page.segments[index].end.y += shift.y
+            if handle != .start {
+                page.segments[index].end.x += dx
+                page.segments[index].end.y += dy
             }
         }
         nudged = id

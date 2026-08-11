@@ -24,28 +24,37 @@ Measurements are numbered on the image and in the inspector.
 | ⇧ drag | lock the line to 90° |
 | click a line | select it — large dots appear |
 | drag a large dot | move that endpoint |
-| arrows | nudge the active endpoint 1 px |
+| drag the line body | slide the dimension off the feature |
+| arrows | nudge whatever is chosen, 1 px |
 | ⇧ arrows | nudge 10 px |
-| ⌥ arrows | move the whole line |
 | ⌫ | delete the selected measurement |
 | ⌘R | use the selected measurement as the reference |
 | ⌘Z / ⇧⌘Z | undo / redo |
 | ⌘E | export |
 | ⌘W | close the current file |
-| ⌘+ ⌘− ⌘0 | zoom in, out, fit |
-| pinch | zoom |
+| ⌘+ ⌘− | zoom in, out |
+| ⌘0 / ⌘9 | actual size, fit to window |
+| ⌘⌥I | show or hide the inspector |
+| pinch, ⌘ or ⌥ scroll | zoom |
 
-Every line ends in a perpendicular tick, so the measured point stays readable. The
-selected line swaps its ticks for open rings you can see through — the pointer never
-hides the point it is placing. A ring grows and the cursor changes to a grab hand
-when you are close enough to catch it.
+Lines are drawn thin, with no halo, and end in a perpendicular tick so the measured
+point stays readable. Selection darkens the colour rather than changing any size, so
+nothing shifts under the pointer.
 
-Only the selected line offers handles, so a drag near an old line starts a new
-measurement instead of moving it. Clicking a line makes the nearer endpoint active;
-that endpoint carries a filled pip and takes the arrow keys. A run of arrow presses
-on one line collapses into a single undo step.
+Click a line to choose the whole line; click one of its open squares to choose that
+end. Arrows move whatever is chosen. A run of arrow presses collapses into a single
+undo step. Only the chosen line offers handles, so a drag near an old line starts a
+new measurement instead of moving it.
 
-Labels sit beside their line, never across it.
+Drag a chosen line by its body to slide the dimension off the feature, the way an
+architectural drawing does. Thin witness lines stay behind, running back to the two
+points actually measured. The value never changes — only where the line is drawn.
+
+Labels sit beside their line, never across it, and the measurement number rides its
+own badge outside the value box so it cannot be read as part of the value.
+
+**Measurement colour** in the inspector sets the colour for every measurement, and
+saves with the file. The reference keeps its own colour so it stays distinct.
 
 Name a measurement in the inspector and the name joins its label on the image.
 

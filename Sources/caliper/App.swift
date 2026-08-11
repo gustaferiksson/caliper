@@ -80,7 +80,8 @@ struct CaliperApp: App {
             CommandGroup(after: .sidebar) {
                 Button("Zoom In") { doc.stepZoom(1.25) }.keyboardShortcut("+")
                 Button("Zoom Out") { doc.stepZoom(0.8) }.keyboardShortcut("-")
-                Button("Zoom to Fit") { doc.fitZoom() }.keyboardShortcut("0")
+                Button("Actual Size") { doc.zoom = 1 }.keyboardShortcut("0")
+                Button("Fit to Window") { doc.fitZoom() }.keyboardShortcut("9")
             }
         }
     }
@@ -135,8 +136,12 @@ struct ContentView: View {
                 doc.label(for: $1, number: $0 + 1, on: sheet)
             })
         })
+        let captions = Dictionary(uniqueKeysWithValues: group.map { sheet in
+            (sheet.id, sheet.segments.map { doc.caption(for: $0, on: sheet) })
+        })
         do {
-            try Exporter.export(pages: group, labels: labels, to: url)
+            try Exporter.export(pages: group, labels: labels, captions: captions,
+                                tint: doc.lineColor, to: url)
             doc.saveReport = "Exported \(url.lastPathComponent)."
         } catch {
             doc.saveReport = error.localizedDescription
@@ -160,6 +165,21 @@ struct ContentView: View {
         ToolbarItem {
             Button("Open…", systemImage: "folder") { importing = true }
                 .keyboardShortcut("o")
+        }
+        ToolbarItem {
+            Menu("\(Int((doc.zoom * 100).rounded()))%") {
+                Button("Zoom In") { doc.stepZoom(1.25) }
+                Button("Zoom Out") { doc.stepZoom(0.8) }
+                Divider()
+                Button("Actual Size") { doc.zoom = 1 }
+                Button("Fit to Window") { doc.fitZoom() }
+            }
+            .fixedSize()
+            .disabled(doc.page == nil)
+        }
+        ToolbarItem {
+            Button("Inspector", systemImage: "sidebar.trailing") { inspecting.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
         }
     }
 }
@@ -205,6 +225,7 @@ struct MeasurementList: View {
         Form {
             Section("Scale") {
                 TextField("Unit", text: $doc.unit)
+                ColorPicker("Measurement colour", selection: $doc.lineColor, supportsOpacity: false)
                 Picker("Reference", selection: $doc.scaleSource) {
                     Text("This page").tag(nil as Page.ID?)
                     ForEach(doc.scaleLenders) { lender in
