@@ -17,6 +17,8 @@ struct Overlay: View {
 
     /// Handles keep one size on screen at every zoom.
     private static let tickLength: CGFloat = 5
+    /// Long enough to run clear of the ring, so selection keeps the flat-end look.
+    private static let selectedTickLength: CGFloat = 14
     private static let ringRadius: CGFloat = 6
     private static let hoverRadius: CGFloat = 8
     private static let captionGap: CGFloat = 6
@@ -43,14 +45,10 @@ struct Overlay: View {
         var body = Path()
         body.move(to: a)
         body.addLine(to: b)
-        // Rings replace the ticks on the selected line, or the two collide.
-        if !isSelected {
-            for cap in [a, b] {
-                body.move(to: CGPoint(x: cap.x - normal.x * Self.tickLength,
-                                      y: cap.y - normal.y * Self.tickLength))
-                body.addLine(to: CGPoint(x: cap.x + normal.x * Self.tickLength,
-                                         y: cap.y + normal.y * Self.tickLength))
-            }
+        let arm = isSelected ? Self.selectedTickLength : Self.tickLength
+        for cap in [a, b] {
+            body.move(to: CGPoint(x: cap.x - normal.x * arm, y: cap.y - normal.y * arm))
+            body.addLine(to: CGPoint(x: cap.x + normal.x * arm, y: cap.y + normal.y * arm))
         }
         ctx.stroke(body, with: .color(.black.opacity(0.55)), lineWidth: isSelected ? 6 : 4)
         ctx.stroke(body, with: .color(color), lineWidth: isSelected ? 3.5 : 2)
