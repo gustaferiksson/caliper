@@ -180,7 +180,7 @@ struct ContentView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        ToolbarItem {
+        ToolbarItem(placement: .navigation) {
             Button("Open…", systemImage: "folder") { importing = true }
                 .keyboardShortcut("o")
         }
@@ -195,31 +195,35 @@ struct ContentView: View {
 struct PageList: View {
     @Bindable var doc: Document
 
+    /// A plain stack, not a List: List paints its own selection block behind the
+    /// row, and Preview marks the page itself rather than the whole row.
     var body: some View {
-        List(selection: $doc.selectedPageID) {
-            ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
-                thumbnail(index: index, page: page)
-                    .tag(page.id)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
-                    .help(page.name)
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
+                    thumbnail(index: index, page: page)
+                        .contentShape(Rectangle())
+                        .onTapGesture { doc.selectedPageID = page.id }
+                        .help(page.name)
+                }
             }
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
         }
-        .listStyle(.sidebar)
         .onChange(of: doc.selectedPageID) { _, _ in
             doc.selectedSegmentID = nil
             doc.fitZoom()
         }
     }
 
-    /// Preview's shape: the page itself is the row, numbered underneath. The white
-    /// sheet hugs the page rather than the row, so the border traces its real edges.
-    private static let thumbBox = CGSize(width: 158, height: 184)
+    private static let thumbWidth: CGFloat = 150
+    private static let thumbMaxHeight: CGFloat = 190
 
+    /// The row hugs the fitted page, so a landscape sheet does not leave a tall gap.
     private func thumbnail(index: Int, page: Page) -> some View {
         let isSelected = page.id == doc.selectedPageID
-        let sheet = fitted(page.image.size, into: Self.thumbBox)
+        let sheet = fitted(page.image.size,
+                           into: CGSize(width: Self.thumbWidth, height: Self.thumbMaxHeight))
         return VStack(spacing: 5) {
             Image(nsImage: page.image)
                 .resizable()
@@ -232,12 +236,10 @@ struct PageList: View {
                                       lineWidth: isSelected ? 3 : 1)
                 }
                 .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
-                .frame(width: Self.thumbBox.width, height: Self.thumbBox.height)
             Text("\(index + 1)")
                 .font(.caption)
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         }
-        .frame(maxWidth: .infinity)
     }
 
     private func fitted(_ size: CGSize, into box: CGSize) -> CGSize {
