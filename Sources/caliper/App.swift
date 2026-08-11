@@ -37,6 +37,8 @@ struct CaliperApp: App {
             ContentView(doc: doc)
         }
         .windowToolbarStyle(.unified)
+        // Wide enough that the toolbar never collapses into the » overflow menu.
+        .defaultSize(width: 1180, height: 780)
         .commands {
             CommandGroup(replacing: .saveItem) {
                 Button("Save Measurements") { doc.saveNow() }
@@ -97,7 +99,7 @@ struct ContentView: View {
             PageList(doc: doc)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
         } detail: {
-            detail
+            detail.frame(minWidth: 420)
         }
         .toolbar { toolbar }
         .inspector(isPresented: $inspecting) {

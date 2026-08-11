@@ -22,8 +22,9 @@ Measurements are numbered on the image and in the inspector.
 | | |
 |---|---|
 | ⇧ drag | lock the line to 90° |
-| click a line | select it — large dots appear |
-| drag a large dot | move that endpoint |
+| click a line | choose the whole line |
+| click a square | choose that end |
+| drag a square | move that endpoint |
 | drag the line body | slide the dimension off the feature |
 | arrows | nudge whatever is chosen, 1 px |
 | ⇧ arrows | nudge 10 px |
