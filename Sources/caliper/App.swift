@@ -169,17 +169,6 @@ struct ContentView: View {
                 .keyboardShortcut("o")
         }
         ToolbarItem {
-            Menu("\(Int((doc.zoom * 100).rounded()))%") {
-                Button("Zoom In") { doc.stepZoom(1.25) }
-                Button("Zoom Out") { doc.stepZoom(0.8) }
-                Divider()
-                Button("Actual Size") { doc.zoom = 1 }
-                Button("Fit to Window") { doc.fitZoom() }
-            }
-            .fixedSize()
-            .disabled(doc.page == nil)
-        }
-        ToolbarItem {
             Button("Inspector", systemImage: "sidebar.trailing") { inspecting.toggle() }
                 .keyboardShortcut("i", modifiers: [.command, .option])
         }

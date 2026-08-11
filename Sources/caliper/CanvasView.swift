@@ -89,14 +89,23 @@ struct CanvasView: View {
         .simultaneousGesture(magnify)
     }
 
+    /// The corner readout is also the zoom control, so the toolbar stays uncrowded.
     private var zoomReadout: some View {
-        Text("\(Int((doc.zoom * 100).rounded()))%")
-            .font(.caption.monospacedDigit())
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(.regularMaterial, in: Capsule())
-            .padding(10)
-            .allowsHitTesting(false)
+        Menu("\(Int((doc.zoom * 100).rounded()))%") {
+            Button("Zoom In") { doc.stepZoom(1.25) }
+            Button("Zoom Out") { doc.stepZoom(0.8) }
+            Divider()
+            Button("Actual Size") { doc.zoom = 1 }
+            Button("Fit to Window") { doc.fitZoom() }
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .font(.system(size: 15, weight: .medium).monospacedDigit())
+        .fixedSize()
+        .padding(.horizontal, 11)
+        .padding(.vertical, 6)
+        .background(.regularMaterial, in: Capsule())
+        .padding(12)
     }
 
     private var board: some View {

@@ -36,6 +36,7 @@ Measurements are numbered on the image and in the inspector.
 | ⌘+ ⌘− | zoom in, out |
 | ⌘0 / ⌘9 | actual size, fit to window |
 | ⌘⌥I | show or hide the inspector |
+| corner badge | zoom menu and readout |
 | pinch, ⌘ or ⌥ scroll | zoom |
 
 Lines are drawn thin, with no halo, and end in a perpendicular tick so the measured
