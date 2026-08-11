@@ -23,11 +23,14 @@ struct Page: Identifiable {
     var segments: [Segment] = []
     var referenceID: Segment.ID?
     var referenceLength = 100.0
+    var scaleSource: Page.ID?
 
     var reference: Segment? { segments.first { $0.id == referenceID } }
 
-    var unitsPerPoint: Double? {
-        guard let reference, reference.length > 0, referenceLength > 0 else { return nil }
+    /// Only a page holding its own reference can lend a scale, so resolution never chains.
+    var ownScale: Double? {
+        guard scaleSource == nil, let reference, reference.length > 0, referenceLength > 0
+        else { return nil }
         return referenceLength / reference.length
     }
 }
@@ -54,11 +57,30 @@ final class Document {
         set { mutate(undoable: false) { $0.referenceLength = newValue } }
     }
 
-    func label(for segment: Segment) -> String {
-        guard let factor = page?.unitsPerPoint else {
+    var scaleSource: Page.ID? {
+        get { page?.scaleSource }
+        set { mutate { $0.scaleSource = newValue } }
+    }
+
+    /// Pages the current one can borrow a scale from.
+    var scaleLenders: [Page] {
+        pages.filter { $0.id != selectedPageID && $0.ownScale != nil }
+    }
+
+    func scale(of page: Page) -> Double? {
+        guard let source = page.scaleSource else { return page.ownScale }
+        return pages.first { $0.id == source }?.ownScale
+    }
+
+    func measurement(for segment: Segment) -> String {
+        guard let page, let factor = scale(of: page) else {
             return String(format: "%.0f px", segment.length)
         }
         return String(format: "%.2f %@", segment.length * factor, unit)
+    }
+
+    func label(for segment: Segment, number: Int) -> String {
+        "\(number)  \(measurement(for: segment))"
     }
 
     func open(_ urls: [URL]) {

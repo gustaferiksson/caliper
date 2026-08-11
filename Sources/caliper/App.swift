@@ -29,7 +29,8 @@ struct CaliperApp: App {
                 }
                 .keyboardShortcut("r")
                 .disabled(doc.selectedSegmentID == nil)
-                Divider()
+            }
+            CommandGroup(after: .sidebar) {
                 Button("Zoom In") { doc.stepZoom(1.25) }.keyboardShortcut("+")
                 Button("Zoom Out") { doc.stepZoom(0.8) }.keyboardShortcut("-")
                 Button("Zoom to Fit") { doc.fitZoom() }.keyboardShortcut("0")
@@ -85,11 +86,6 @@ struct ContentView: View {
             Button("Open…", systemImage: "folder") { importing = true }
                 .keyboardShortcut("o")
         }
-        ToolbarItemGroup {
-            Button("Zoom Out", systemImage: "minus.magnifyingglass") { doc.stepZoom(0.8) }
-            Button("Zoom to Fit", systemImage: "arrow.up.left.and.arrow.down.right") { doc.fitZoom() }
-            Button("Zoom In", systemImage: "plus.magnifyingglass") { doc.stepZoom(1.25) }
-        }
     }
 }
 
@@ -122,7 +118,7 @@ struct PageList: View {
 
     private func summary(of page: Page) -> String {
         let count = page.segments.count
-        let scale = page.unitsPerPoint == nil ? "no reference" : "scaled"
+        let scale = doc.scale(of: page) == nil ? "no reference" : "scaled"
         return "\(count) line\(count == 1 ? "" : "s") · \(scale)"
     }
 }
@@ -134,7 +130,17 @@ struct MeasurementList: View {
         Form {
             Section("Scale") {
                 TextField("Unit", text: $doc.unit)
-                if let page = doc.page, page.reference != nil {
+                Picker("Reference", selection: $doc.scaleSource) {
+                    Text("This page").tag(nil as Page.ID?)
+                    ForEach(doc.scaleLenders) { lender in
+                        Text(lender.name).tag(lender.id as Page.ID?)
+                    }
+                }
+                if doc.scaleSource != nil {
+                    Text("Borrowed from another page.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if doc.page?.reference != nil {
                     TextField("Reference length", value: $doc.referenceLength, format: .number)
                 } else {
                     Text("Draw a line over a known dimension, then mark it as the reference.")
@@ -168,7 +174,7 @@ struct MeasurementList: View {
         let isSelected = segment.id == doc.selectedSegmentID
         return HStack(spacing: 6) {
             Text("\(index + 1)").foregroundStyle(.secondary).monospacedDigit()
-            Text(doc.label(for: segment))
+            Text(doc.measurement(for: segment))
                 .monospacedDigit()
                 .foregroundStyle(isReference ? .orange : .primary)
             Spacer()

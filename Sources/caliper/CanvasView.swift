@@ -86,11 +86,12 @@ struct CanvasView: View {
 
     private var tolerance: Double { 10 / doc.zoom }
 
+    /// Only the selected line offers handles — the one already showing the large dots.
     private func begin(at point: CGPoint) -> Grab {
-        guard let hit = handleHit(in: page.segments, near: point, tolerance: tolerance),
-              let held = page.segments.first(where: { $0.id == hit.id })
+        let selected = page.segments.filter { $0.id == doc.selectedSegmentID }
+        guard let hit = handleHit(in: selected, near: point, tolerance: tolerance),
+              let held = selected.first
         else { return .create(point) }
-        doc.selectedSegmentID = hit.id
         return .move(id: hit.id, handle: hit.handle,
                      anchor: hit.handle == .start ? held.end : held.start)
     }
@@ -128,10 +129,10 @@ struct CanvasView: View {
                 shown.append(live)
             }
         }
-        for segment in shown { stroke(ctx, segment) }
+        for (index, segment) in shown.enumerated() { stroke(ctx, segment, number: index + 1) }
     }
 
-    private func stroke(_ ctx: GraphicsContext, _ segment: Segment) {
+    private func stroke(_ ctx: GraphicsContext, _ segment: Segment, number: Int) {
         let isReference = segment.id == page.referenceID
         let isSelected = segment.id == doc.selectedSegmentID
         let color: Color = isReference ? .orange : .accentColor
@@ -151,7 +152,7 @@ struct CanvasView: View {
             if isSelected { ctx.stroke(Path(ellipseIn: dot), with: .color(color), lineWidth: 2) }
         }
 
-        let text = ctx.resolve(Text(doc.label(for: segment))
+        let text = ctx.resolve(Text(doc.label(for: segment, number: number))
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.white))
         let size = text.measure(in: CGSize(width: 240, height: 40))
