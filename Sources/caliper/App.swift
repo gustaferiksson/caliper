@@ -97,7 +97,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             PageList(doc: doc)
-                .navigationSplitViewColumnWidth(min: 150, ideal: 170, max: 240)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 205, max: 300)
         } detail: {
             // The toolbar belongs to the detail column. On the split view itself,
             // SwiftUI spreads its items across the columns and the trailing button
@@ -202,6 +202,7 @@ struct PageList: View {
                     .tag(page.id)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 6, bottom: 6, trailing: 6))
                     .help(page.name)
             }
         }
@@ -212,26 +213,37 @@ struct PageList: View {
         }
     }
 
-    /// Preview's shape: the page itself is the row, numbered underneath.
+    /// Preview's shape: the page itself is the row, numbered underneath. The white
+    /// sheet hugs the page rather than the row, so the border traces its real edges.
+    private static let thumbBox = CGSize(width: 158, height: 184)
+
     private func thumbnail(index: Int, page: Page) -> some View {
         let isSelected = page.id == doc.selectedPageID
-        return VStack(spacing: 4) {
+        let sheet = fitted(page.image.size, into: Self.thumbBox)
+        return VStack(spacing: 5) {
             Image(nsImage: page.image)
                 .resizable()
-                .scaledToFit()
-                .frame(maxWidth: 120, maxHeight: 140)
+                .interpolation(.high)
+                .frame(width: sheet.width, height: sheet.height)
                 .background(.white)
                 .overlay {
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: 2)
                         .strokeBorder(isSelected ? Color.accentColor : Color(.separatorColor),
                                       lineWidth: isSelected ? 3 : 1)
                 }
+                .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                .frame(width: Self.thumbBox.width, height: Self.thumbBox.height)
             Text("\(index + 1)")
                 .font(.caption)
                 .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
+    }
+
+    private func fitted(_ size: CGSize, into box: CGSize) -> CGSize {
+        guard size.width > 0, size.height > 0 else { return box }
+        let scale = min(box.width / size.width, box.height / size.height)
+        return CGSize(width: size.width * scale, height: size.height * scale)
     }
 }
 
