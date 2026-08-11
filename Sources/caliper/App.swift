@@ -110,7 +110,6 @@ struct ContentView: View {
             // SwiftUI spreads its items across the columns and the trailing button
             // lands over the sidebar.
             detail
-                .frame(minWidth: 420)
                 .navigationTitle(doc.page?.name ?? "Caliper")
                 .navigationSubtitle(pageCounter)
                 .toolbar { toolbar }
@@ -236,14 +235,14 @@ struct PageList: View {
 
     private func thumbnail(index: Int, page: Page) -> some View {
         let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
-        let ratio = page.image.size.width / page.image.size.height
+        let ratio = page.thumbnail.size.width / max(page.thumbnail.size.height, 1)
         return VStack(spacing: 4) {
             // Colour first, image as an overlay: a resizable Image carries the page's
             // natural size into layout, and squeezing that inside a split view loops
             // AppKit's constraint solver until it aborts.
             Color.white
                 .aspectRatio(ratio, contentMode: .fit)
-                .overlay { Image(nsImage: page.image).resizable().interpolation(.high) }
+                .overlay { Image(nsImage: page.thumbnail).resizable().interpolation(.high) }
                 .clipShape(corner)
                 .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
                 .frame(maxWidth: .infinity)

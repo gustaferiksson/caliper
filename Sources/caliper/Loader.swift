@@ -13,7 +13,23 @@ enum Loader {
     private static func imagePage(from url: URL) -> [Page] {
         guard let image = NSImage(contentsOf: url), image.size.width > 0, image.size.height > 0
         else { return [] }
-        return [Page(name: url.lastPathComponent, image: image, source: url, pageIndex: 0)]
+        return [Page(name: url.lastPathComponent, image: image, thumbnail: small(image),
+                     source: url, pageIndex: 0)]
+    }
+
+    private static let thumbnailWidth = 320.0
+
+    private static func small(_ image: NSImage) -> NSImage {
+        let size = image.size
+        guard size.width > thumbnailWidth else { return image }
+        let scaled = CGSize(width: thumbnailWidth,
+                            height: (thumbnailWidth / size.width * size.height).rounded())
+        let copy = NSImage(size: scaled)
+        copy.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(in: CGRect(origin: .zero, size: scaled))
+        copy.unlockFocus()
+        return copy
     }
 
     private static func pdfPages(from url: URL) -> [Page] {
@@ -28,7 +44,8 @@ enum Loader {
             let name = pdf.pageCount == 1
                 ? url.lastPathComponent
                 : "\(url.lastPathComponent) — page \(index + 1)"
-            return Page(name: name, image: image, source: url, pageIndex: index)
+            return Page(name: name, image: image, thumbnail: small(image),
+                        source: url, pageIndex: index)
         }
     }
 }

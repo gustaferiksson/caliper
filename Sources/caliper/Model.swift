@@ -26,6 +26,9 @@ struct Page: Identifiable {
     let id = UUID()
     let name: String
     let image: NSImage
+    /// A small copy for the sidebar. Rescaling the full page on every drag frame is
+    /// what drives AppKit's constraint pass into a loop.
+    let thumbnail: NSImage
     let source: URL
     let pageIndex: Int
     var segments: [Segment] = []
