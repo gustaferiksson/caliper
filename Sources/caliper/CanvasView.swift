@@ -8,6 +8,7 @@ struct CanvasView: View {
     @State private var grab: Grab?
     @State private var live: Segment?
     @State private var zoomBase: Double?
+    @FocusState private var focused: Bool
 
     private enum Grab {
         case create(CGPoint)
@@ -18,6 +19,18 @@ struct CanvasView: View {
 
     private var boardSize: CGSize {
         CGSize(width: page.image.size.width * doc.zoom, height: page.image.size.height * doc.zoom)
+    }
+
+    /// The live segment replaces its stored twin, or appends while a new line is being drawn.
+    private var shown: [Segment] {
+        var all = page.segments
+        guard let live else { return all }
+        if let index = all.firstIndex(where: { $0.id == live.id }) {
+            all[index] = live
+        } else {
+            all.append(live)
+        }
+        return all
     }
 
     var body: some View {
@@ -32,6 +45,7 @@ struct CanvasView: View {
             .onAppear {
                 doc.viewport = geo.size
                 doc.fitZoom()
+                focused = true
             }
             .onChange(of: geo.size) { _, size in doc.viewport = size }
         }
@@ -43,12 +57,39 @@ struct CanvasView: View {
             Image(nsImage: page.image)
                 .resizable()
                 .interpolation(.high)
-            Canvas { ctx, _ in draw(ctx) }
+            Overlay(segments: shown,
+                    labels: shown.enumerated().map { doc.label(for: $1, number: $0 + 1) },
+                    referenceID: page.referenceID,
+                    selectedID: doc.selectedSegmentID,
+                    activeHandle: doc.selectedHandle,
+                    scale: doc.zoom)
         }
         .frame(width: boardSize.width, height: boardSize.height)
         .coordinateSpace(.named(Self.space))
         .contentShape(Rectangle())
+        .focusable()
+        .focusEffectDisabled()
+        .focused($focused)
         .gesture(drag)
+        .onKeyPress(keys: [.upArrow, .downArrow, .leftArrow, .rightArrow], action: arrow)
+        .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+            doc.removeSelected()
+            return .handled
+        }
+    }
+
+    private func arrow(_ press: KeyPress) -> KeyPress.Result {
+        guard doc.selectedSegmentID != nil else { return .ignored }
+        let step: Double = press.modifiers.contains(.shift) ? 10 : 1
+        let delta: CGPoint
+        switch press.key {
+        case .upArrow: delta = CGPoint(x: 0, y: -step)
+        case .downArrow: delta = CGPoint(x: 0, y: step)
+        case .leftArrow: delta = CGPoint(x: -step, y: 0)
+        default: delta = CGPoint(x: step, y: 0)
+        }
+        doc.nudge(dx: delta.x, dy: delta.y, wholeLine: press.modifiers.contains(.option))
+        return .handled
     }
 
     private var magnify: some Gesture {
@@ -69,6 +110,7 @@ struct CanvasView: View {
                 live = segment(for: started, at: imagePoint(value.location))
             }
             .onEnded { value in
+                focused = true
                 let travel = hypot(value.translation.width, value.translation.height)
                 if travel < 3 {
                     select(at: imagePoint(value.startLocation))
@@ -92,6 +134,7 @@ struct CanvasView: View {
         guard let hit = handleHit(in: selected, near: point, tolerance: tolerance),
               let held = selected.first
         else { return .create(point) }
+        doc.selectedHandle = hit.handle
         return .move(id: hit.id, handle: hit.handle,
                      anchor: hit.handle == .start ? held.end : held.start)
     }
@@ -103,67 +146,28 @@ struct CanvasView: View {
             return Segment(start: origin, end: axisLocked(origin, point, locked: locked))
         case .move(let id, let handle, let anchor):
             let moved = axisLocked(anchor, point, locked: locked)
+            let held = page.segments.first { $0.id == id }
             return handle == .start
-                ? Segment(id: id, start: moved, end: anchor)
-                : Segment(id: id, start: anchor, end: moved)
+                ? Segment(id: id, start: moved, end: anchor, name: held?.name ?? "")
+                : Segment(id: id, start: anchor, end: moved, name: held?.name ?? "")
         }
     }
 
     private func commit(_ segment: Segment, for grab: Grab) {
         switch grab {
-        case .create: doc.add(segment)
-        case .move: doc.replace(segment)
+        case .create:
+            doc.add(segment)
+            doc.selectedHandle = .end
+        case .move:
+            doc.replace(segment)
         }
     }
 
     private func select(at point: CGPoint) {
         doc.selectedSegmentID = segmentHit(in: page.segments, near: point, tolerance: tolerance)
-    }
-
-    private func draw(_ ctx: GraphicsContext) {
-        var shown = page.segments
-        if let live {
-            if let index = shown.firstIndex(where: { $0.id == live.id }) {
-                shown[index] = live
-            } else {
-                shown.append(live)
-            }
-        }
-        for (index, segment) in shown.enumerated() { stroke(ctx, segment, number: index + 1) }
-    }
-
-    private func stroke(_ ctx: GraphicsContext, _ segment: Segment, number: Int) {
-        let isReference = segment.id == page.referenceID
-        let isSelected = segment.id == doc.selectedSegmentID
-        let color: Color = isReference ? .orange : .accentColor
-        let a = viewPoint(segment.start)
-        let b = viewPoint(segment.end)
-
-        var line = Path()
-        line.move(to: a)
-        line.addLine(to: b)
-        ctx.stroke(line, with: .color(.black.opacity(0.55)), lineWidth: isSelected ? 5 : 4)
-        ctx.stroke(line, with: .color(color), lineWidth: isSelected ? 3 : 2)
-
-        let radius: CGFloat = isSelected ? 5 : 3
-        for cap in [a, b] {
-            let dot = CGRect(x: cap.x - radius, y: cap.y - radius, width: radius * 2, height: radius * 2)
-            ctx.fill(Path(ellipseIn: dot), with: .color(isSelected ? .white : color))
-            if isSelected { ctx.stroke(Path(ellipseIn: dot), with: .color(color), lineWidth: 2) }
-        }
-
-        let text = ctx.resolve(Text(doc.label(for: segment, number: number))
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white))
-        let size = text.measure(in: CGSize(width: 240, height: 40))
-        let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-        let box = CGRect(x: mid.x - size.width / 2 - 5, y: mid.y - size.height / 2 - 3,
-                         width: size.width + 10, height: size.height + 6)
-        ctx.fill(Path(roundedRect: box, cornerRadius: 4), with: .color(.black.opacity(0.75)))
-        ctx.draw(text, at: mid, anchor: .center)
-    }
-
-    private func viewPoint(_ p: CGPoint) -> CGPoint {
-        CGPoint(x: p.x * doc.zoom, y: p.y * doc.zoom)
+        guard let hit = doc.selectedSegment else { return }
+        let toStart = hypot(point.x - hit.start.x, point.y - hit.start.y)
+        let toEnd = hypot(point.x - hit.end.x, point.y - hit.end.y)
+        doc.selectedHandle = toStart < toEnd ? .start : .end
     }
 }

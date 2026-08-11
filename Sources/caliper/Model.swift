@@ -5,11 +5,13 @@ struct Segment: Identifiable, Hashable {
     let id: UUID
     var start: CGPoint
     var end: CGPoint
+    var name: String
 
-    init(id: UUID = UUID(), start: CGPoint, end: CGPoint) {
+    init(id: UUID = UUID(), start: CGPoint, end: CGPoint, name: String = "") {
         self.id = id
         self.start = start
         self.end = end
+        self.name = name
     }
 
     var length: Double { hypot(end.x - start.x, end.y - start.y) }
@@ -42,17 +44,23 @@ final class Document {
     var pages: [Page] = []
     var selectedPageID: Page.ID?
     var selectedSegmentID: Segment.ID?
-    var unit = "mm"
+    var selectedHandle: Handle = .end
+    var unit = "mm" { didSet { if unit != oldValue { dirty = true } } }
     var zoom = 1.0
     var viewport = CGSize.zero
     var saveReport: String?
+    private(set) var dirty = false
 
     private var undoStack: [[Page]] = []
     private var redoStack: [[Page]] = []
+    private var nudged: Segment.ID?
     private static let historyLimit = 100
     private static let minimumLength = 2.0
 
     var page: Page? { pages.first { $0.id == selectedPageID } }
+    var selectedSegment: Segment? {
+        page?.segments.first { $0.id == selectedSegmentID }
+    }
 
     /// Not undoable — a text field would push a checkpoint per keystroke.
     var referenceLength: Double {
@@ -75,15 +83,63 @@ final class Document {
         return pages.first { $0.id == source }?.ownScale
     }
 
-    func measurement(for segment: Segment) -> String {
-        guard let page, let factor = scale(of: page) else {
+    func measurement(for segment: Segment, on page: Page) -> String {
+        guard let factor = scale(of: page) else {
             return String(format: "%.0f px", segment.length)
         }
-        return String(format: "%.2f %@", segment.length * factor, unit)
+        return "\(Self.rounded(segment.length * factor)) \(unit)"
+    }
+
+    func measurement(for segment: Segment) -> String {
+        guard let page else { return String(format: "%.0f px", segment.length) }
+        return measurement(for: segment, on: page)
+    }
+
+    func label(for segment: Segment, number: Int, on page: Page) -> String {
+        let parts = [String(number), segment.name, measurement(for: segment, on: page)]
+        return parts.filter { !$0.isEmpty }.joined(separator: "  ")
     }
 
     func label(for segment: Segment, number: Int) -> String {
-        "\(number)  \(measurement(for: segment))"
+        guard let page else { return measurement(for: segment) }
+        return label(for: segment, number: number, on: page)
+    }
+
+    /// Fewer decimals as the number grows, so metres and millimetres both read sanely.
+    static func rounded(_ value: Double) -> String {
+        let magnitude = abs(value)
+        let places = magnitude >= 1000 ? 0 : (magnitude >= 100 ? 1 : (magnitude >= 1 ? 2 : 3))
+        return String(format: "%.\(places)f", value)
+    }
+
+    var scaleReadout: String? {
+        guard let page, let factor = scale(of: page) else { return nil }
+        return "1 px = \(String(format: "%.4g", factor)) \(unit)"
+    }
+
+    /// A short reference multiplies its own placement error into every other line.
+    var referenceWarning: String? {
+        guard let page, let factor = scale(of: page), factor > 0 else { return nil }
+        let lender = page.scaleSource.flatMap { id in pages.first { $0.id == id } } ?? page
+        guard let reference = lender.reference else { return nil }
+        if reference.length < 30 {
+            return "The reference is only \(Int(reference.length)) px long. Draw it longer for accuracy."
+        }
+        guard let longest = page.segments.map(\.length).max(), longest > reference.length * 5 else {
+            return nil
+        }
+        return "Some lines are over 5× the reference. Errors in the reference scale up."
+    }
+
+    func name(of id: Segment.ID) -> String {
+        page?.segments.first { $0.id == id }?.name ?? ""
+    }
+
+    func setName(_ name: String, for id: Segment.ID) {
+        mutate(undoable: false) { page in
+            guard let index = page.segments.firstIndex(where: { $0.id == id }) else { return }
+            page.segments[index].name = name
+        }
     }
 
     func open(_ urls: [URL]) {
@@ -99,12 +155,14 @@ final class Document {
             loaded.append(contentsOf: fresh)
         }
         guard !loaded.isEmpty else { return }
+        let wasDirty = dirty
         checkpoint()
         pages.append(contentsOf: loaded)
         relink(pending)
         selectedPageID = loaded.first?.id
         selectedSegmentID = nil
         fitZoom()
+        dirty = wasDirty // opening a file is not an unsaved edit
     }
 
     func save() throws {
@@ -116,6 +174,7 @@ final class Document {
     func saveNow() {
         do {
             try save()
+            dirty = false
             saveReport = "Saved into \(Set(pages.map(\.source)).count) file(s)."
         } catch {
             saveReport = error.localizedDescription
@@ -150,6 +209,32 @@ final class Document {
             guard let index = page.segments.firstIndex(where: { $0.id == segment.id }) else { return }
             page.segments[index] = segment
         }
+    }
+
+    /// A run of arrow presses on one line collapses into a single undo step.
+    func nudge(dx: Double, dy: Double, wholeLine: Bool) {
+        guard let id = selectedSegmentID else { return }
+        mutate(undoable: nudged != id) { page in
+            guard let index = page.segments.firstIndex(where: { $0.id == id }) else { return }
+            let shift = CGPoint(x: dx, y: dy)
+            if wholeLine || selectedHandle == .start {
+                page.segments[index].start.x += shift.x
+                page.segments[index].start.y += shift.y
+            }
+            if wholeLine || selectedHandle == .end {
+                page.segments[index].end.x += shift.x
+                page.segments[index].end.y += shift.y
+            }
+        }
+        nudged = id
+    }
+
+    func closeCurrentFile() {
+        guard let source = page?.source else { return }
+        checkpoint()
+        pages.removeAll { $0.source == source }
+        repairSelection()
+        fitZoom()
     }
 
     func remove(_ id: Segment.ID) {
@@ -200,22 +285,28 @@ final class Document {
         guard let index = pages.firstIndex(where: { $0.id == selectedPageID }) else { return }
         if undoable { checkpoint() }
         change(&pages[index])
+        dirty = true
     }
 
     private func checkpoint() {
         undoStack.append(pages)
         if undoStack.count > Self.historyLimit { undoStack.removeFirst() }
         redoStack.removeAll()
+        nudged = nil
+        dirty = true
     }
 
     private func repairSelection() {
+        nudged = nil
         if !pages.contains(where: { $0.id == selectedPageID }) {
             selectedPageID = pages.first?.id
         }
-        guard let current = page, current.segments.contains(where: { $0.id == selectedSegmentID })
-        else {
+        if page?.segments.contains(where: { $0.id == selectedSegmentID }) != true {
             selectedSegmentID = nil
-            return
+        }
+        let live = Set(pages.map(\.id))
+        for index in pages.indices where pages[index].scaleSource.map({ !live.contains($0) }) == true {
+            pages[index].scaleSource = nil
         }
     }
 }

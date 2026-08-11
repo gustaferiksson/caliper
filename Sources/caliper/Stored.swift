@@ -8,6 +8,7 @@ struct Stored: Codable {
         var y1: Double
         var x2: Double
         var y2: Double
+        var name: String?
     }
 
     /// A lender in another file, named so it can be relinked when both files are open.
@@ -34,7 +35,8 @@ extension Stored {
         Stored(unit: unit, sheets: pages.map { page in
             Sheet(page: page.pageIndex,
                   lines: page.segments.map {
-                      Line(x1: $0.start.x, y1: $0.start.y, x2: $0.end.x, y2: $0.end.y)
+                      Line(x1: $0.start.x, y1: $0.start.y, x2: $0.end.x, y2: $0.end.y,
+                           name: $0.name.isEmpty ? nil : $0.name)
                   },
                   reference: page.segments.firstIndex { $0.id == page.referenceID },
                   referenceLength: page.referenceLength,
@@ -48,7 +50,8 @@ extension Stored {
         for sheet in sheets {
             guard let index = pages.firstIndex(where: { $0.pageIndex == sheet.page }) else { continue }
             pages[index].segments = sheet.lines.map {
-                Segment(start: CGPoint(x: $0.x1, y: $0.y1), end: CGPoint(x: $0.x2, y: $0.y2))
+                Segment(start: CGPoint(x: $0.x1, y: $0.y1), end: CGPoint(x: $0.x2, y: $0.y2),
+                        name: $0.name ?? "")
             }
             pages[index].referenceLength = sheet.referenceLength
             if let reference = sheet.reference, pages[index].segments.indices.contains(reference) {

@@ -1,9 +1,36 @@
+import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    let doc = Document()
+
+    /// Measurements live only in memory until a save, so quitting dirty must ask.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard doc.dirty else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "Save measurements before quitting?"
+        alert.informativeText = "Caliper writes them into the files you opened."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Discard")
+        alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            doc.saveNow()
+            return doc.dirty ? .terminateCancel : .terminateNow
+        case .alertSecondButtonReturn:
+            return .terminateNow
+        default:
+            return .terminateCancel
+        }
+    }
+}
+
 @main
 struct CaliperApp: App {
-    @State private var doc = Document()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    private var doc: Document { delegate.doc }
 
     var body: some Scene {
         WindowGroup("Caliper") {
@@ -15,6 +42,19 @@ struct CaliperApp: App {
                 Button("Save Measurements") { doc.saveNow() }
                     .keyboardShortcut("s")
                     .disabled(doc.pages.isEmpty)
+                Button("Export…") { NotificationCenter.default.post(name: .caliperExport, object: nil) }
+                    .keyboardShortcut("e")
+                    .disabled(doc.page == nil)
+                Divider()
+                // Falls through to the window when nothing is open, so ⌘W still closes it.
+                Button("Close File") {
+                    if doc.page == nil {
+                        NSApp.keyWindow?.performClose(nil)
+                    } else {
+                        doc.closeCurrentFile()
+                    }
+                }
+                .keyboardShortcut("w")
             }
             CommandGroup(replacing: .undoRedo) {
                 Button("Undo") { doc.undo() }
@@ -25,8 +65,10 @@ struct CaliperApp: App {
                     .disabled(!doc.canRedo)
             }
             CommandMenu("Measurement") {
+                // ⌘⌫, not bare ⌫ — a menu key equivalent would steal the key from the
+                // name and length fields. The canvas handles bare ⌫ when it has focus.
                 Button("Delete") { doc.removeSelected() }
-                    .keyboardShortcut(.delete, modifiers: [])
+                    .keyboardShortcut(.delete, modifiers: [.command])
                     .disabled(doc.selectedSegmentID == nil)
                 Button("Use as Reference") {
                     guard let id = doc.selectedSegmentID else { return }
@@ -76,6 +118,28 @@ struct ContentView: View {
             Button("OK") { doc.saveReport = nil }
         } message: {
             Text(doc.saveReport ?? "")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .caliperExport)) { _ in exportNow() }
+    }
+
+    private func exportNow() {
+        guard let page = doc.page else { return }
+        let group = doc.pages.filter { $0.source == page.source }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = Exporter.suggestedName(for: page)
+        panel.allowedContentTypes = [Exporter.isPDF(page) ? .pdf : .png]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let labels = Dictionary(uniqueKeysWithValues: group.map { sheet in
+            (sheet.id, sheet.segments.enumerated().map {
+                doc.label(for: $1, number: $0 + 1, on: sheet)
+            })
+        })
+        do {
+            try Exporter.export(pages: group, labels: labels, to: url)
+            doc.saveReport = "Exported \(url.lastPathComponent)."
+        } catch {
+            doc.saveReport = error.localizedDescription
         }
     }
 
@@ -158,6 +222,14 @@ struct MeasurementList: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                if let readout = doc.scaleReadout {
+                    Text(readout).font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
+                if let warning = doc.referenceWarning {
+                    Label(warning, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
             }
 
             Section("Measurements") {
@@ -172,7 +244,10 @@ struct MeasurementList: View {
             }
 
             Section {
-                Text("⇧ drag locks to 90°. Drag an endpoint to adjust. ⌘Z undoes.")
+                Text("""
+                     ⇧ drag locks to 90°. Click a line, then drag a large dot or nudge it \
+                     with the arrow keys — ⇧ for 10 px, ⌥ to move the whole line.
+                     """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -185,10 +260,13 @@ struct MeasurementList: View {
         let isSelected = segment.id == doc.selectedSegmentID
         return HStack(spacing: 6) {
             Text("\(index + 1)").foregroundStyle(.secondary).monospacedDigit()
+            TextField("Name", text: Binding(get: { doc.name(of: segment.id) },
+                                            set: { doc.setName($0, for: segment.id) }))
+                .textFieldStyle(.plain)
+                .onTapGesture { doc.selectedSegmentID = segment.id }
             Text(doc.measurement(for: segment))
                 .monospacedDigit()
-                .foregroundStyle(isReference ? .orange : .primary)
-            Spacer()
+                .foregroundStyle(isReference ? .orange : .secondary)
             Button("Use as reference", systemImage: isReference ? "ruler.fill" : "ruler") {
                 doc.toggleReference(segment.id)
             }
@@ -200,7 +278,10 @@ struct MeasurementList: View {
         .buttonStyle(.borderless)
         .padding(.vertical, 2)
         .listRowBackground(isSelected ? Color.accentColor.opacity(0.15) : nil)
-        .contentShape(Rectangle())
-        .onTapGesture { doc.selectedSegmentID = segment.id }
     }
+}
+
+extension Notification.Name {
+    /// SwiftUI commands cannot reach a view's NSSavePanel directly — this is the bridge.
+    static let caliperExport = Notification.Name("caliper.export")
 }

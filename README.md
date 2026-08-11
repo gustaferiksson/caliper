@@ -24,14 +24,26 @@ Measurements are numbered on the image and in the inspector.
 | ⇧ drag | lock the line to 90° |
 | click a line | select it — large dots appear |
 | drag a large dot | move that endpoint |
+| arrows | nudge the active endpoint 1 px |
+| ⇧ arrows | nudge 10 px |
+| ⌥ arrows | move the whole line |
 | ⌫ | delete the selected measurement |
 | ⌘R | use the selected measurement as the reference |
 | ⌘Z / ⇧⌘Z | undo / redo |
+| ⌘E | export |
+| ⌘W | close the current file |
 | ⌘+ ⌘− ⌘0 | zoom in, out, fit |
 | pinch | zoom |
 
 Only the selected line offers handles, so a drag near an old line starts a new
-measurement instead of moving it.
+measurement instead of moving it. Clicking a line makes the nearer endpoint active;
+that endpoint draws filled and takes the arrow keys. A run of arrow presses on one
+line collapses into a single undo step.
+
+Name a measurement in the inspector and the name joins its label on the image.
+
+The inspector shows the derived scale — `1 px = 0.2500 mm` — and warns when the
+reference is too short to trust, or when other lines dwarf it.
 
 Measurements are stored in image coordinates, per page. Change the reference, its
 length, or the unit at any time and every label recalculates.
@@ -56,8 +68,20 @@ A page that borrows another page's scale records the lender by filename and page
 number. Reopen both files together and the link comes back; open the borrower alone
 and it falls back to pixels until you re-pick.
 
+Quitting with unsaved measurements asks first.
+
+## Exporting
+
+⌘E writes a copy for people who do not have Caliper.
+
+- **Images** export as PNG with the lines and labels burned in, at full pixel
+  resolution.
+- **PDFs** export as a PDF with real `/Line` annotations plus a free-text caption
+  per measurement, so other readers list them as annotations instead of flattened
+  pixels. Export covers every page of that PDF, not just the current one.
+
 ## Scope
 
 Proof of concept. Undo covers geometry and the reference choice, not the typed
-length or unit. Saving is manual — nothing warns you about unsaved measurements on
-quit. PDF pages render at 3× their point size, so zooming far past 300% goes soft.
+length, unit, or name. PDF pages render at 3× their point size, so zooming far past
+300% goes soft. How a free-text caption looks depends on the PDF reader.
