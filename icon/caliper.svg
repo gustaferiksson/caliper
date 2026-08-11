@@ -10,7 +10,7 @@
       <stop offset="1" stop-color="#9437ff" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="glyph" gradientUnits="userSpaceOnUse"
-                    x1="186" y1="322" x2="560" y2="692">
+                    x1="220" y1="220" x2="620" y2="804">
       <stop offset="0" stop-color="#d7a6ff"/>
       <stop offset="1" stop-color="#9437ff"/>
     </linearGradient>
@@ -30,12 +30,11 @@
     <rect x="92" y="92" width="840" height="840" fill="url(#aura)"/>
   </g>
 
-  <!-- a labelled dimension: chip above, flat-ended line below -->
-  <rect x="414" y="322" width="196" height="116" rx="30" fill="url(#glyph)"/>
+  <!-- one diagonal dimension, flat ends square to the line -->
   <g stroke="url(#glyph)" fill="none" stroke-linecap="butt">
-    <path d="M186 616 H 838" stroke-width="60"/>
-    <path d="M186 540 V 692" stroke-width="46"/>
-    <path d="M838 540 V 692" stroke-width="46"/>
+    <path d="M296 728 L 728 296" stroke-width="62"/>
+    <path d="M220 652 L 372 804" stroke-width="50"/>
+    <path d="M652 220 L 804 372" stroke-width="50"/>
   </g>
 
   <rect x="92" y="92" width="840" height="840" rx="196" ry="196" fill="url(#sheen)"/>
