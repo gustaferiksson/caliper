@@ -55,7 +55,10 @@ struct Overlay: View {
         let head = CGPoint(x: a.x + out.x * reach, y: a.y + out.y * reach)
         let tail = CGPoint(x: b.x + out.x * reach, y: b.y + out.y * reach)
 
-        if reach > 1 { witness(ctx, from: [a, b], along: out, reach: reach, color: color) }
+        if reach > 1 {
+            witness(ctx, from: [a, b], along: out, reach: reach, color: color,
+                    weight: isSelected ? 2 : Self.lineWidth)
+        }
 
         var body = Path()
         body.move(to: head)
@@ -83,17 +86,22 @@ struct Overlay: View {
                 normal: across, color: color)
     }
 
-    /// Thin witness lines back to the points actually measured.
+    /// The measured point keeps a full-weight flat end. Only the run out to the
+    /// moved dimension line goes slim.
     private func witness(_ ctx: GraphicsContext, from feet: [CGPoint], along out: CGPoint,
-                         reach: CGFloat, color: Color) {
-        var lines = Path()
+                         reach: CGFloat, color: Color, weight: CGFloat) {
+        let stub = min(Self.tickLength, reach * 0.4)
+        var ends = Path()
+        var runs = Path()
         for foot in feet {
-            lines.move(to: CGPoint(x: foot.x + out.x * Self.witnessGap,
-                                   y: foot.y + out.y * Self.witnessGap))
-            lines.addLine(to: CGPoint(x: foot.x + out.x * (reach + Self.witnessOvershoot),
-                                      y: foot.y + out.y * (reach + Self.witnessOvershoot)))
+            ends.move(to: CGPoint(x: foot.x - out.x * stub, y: foot.y - out.y * stub))
+            ends.addLine(to: CGPoint(x: foot.x + out.x * stub, y: foot.y + out.y * stub))
+            runs.move(to: CGPoint(x: foot.x + out.x * stub, y: foot.y + out.y * stub))
+            runs.addLine(to: CGPoint(x: foot.x + out.x * (reach + Self.witnessOvershoot),
+                                     y: foot.y + out.y * (reach + Self.witnessOvershoot)))
         }
-        ctx.stroke(lines, with: .color(color.opacity(0.45)), lineWidth: 1)
+        ctx.stroke(ends, with: .color(color), lineWidth: weight)
+        ctx.stroke(runs, with: .color(color.opacity(0.45)), lineWidth: 1)
     }
 
     private func perpendicular(from a: CGPoint, to b: CGPoint) -> CGPoint {

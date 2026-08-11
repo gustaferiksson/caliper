@@ -199,7 +199,7 @@ struct PageList: View {
     /// row, and Preview marks the page itself rather than the whole row.
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 2) {
                 ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
                     thumbnail(index: index, page: page)
                         .contentShape(Rectangle())
@@ -219,26 +219,28 @@ struct PageList: View {
     private static let thumbWidth: CGFloat = 150
     private static let thumbMaxHeight: CGFloat = 190
 
-    /// The row hugs the fitted page, so a landscape sheet does not leave a tall gap.
+    /// Preview's cell: the page always keeps a hairline edge, and the blue frame
+    /// wraps the page and its number rather than filling the row.
     private func thumbnail(index: Int, page: Page) -> some View {
         let isSelected = page.id == doc.selectedPageID
         let sheet = fitted(page.image.size,
                            into: CGSize(width: Self.thumbWidth, height: Self.thumbMaxHeight))
-        return VStack(spacing: 5) {
+        return VStack(spacing: 4) {
             Image(nsImage: page.image)
                 .resizable()
                 .interpolation(.high)
                 .frame(width: sheet.width, height: sheet.height)
                 .background(.white)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 2)
-                        .strokeBorder(isSelected ? Color.accentColor : Color(.separatorColor),
-                                      lineWidth: isSelected ? 3 : 1)
-                }
-                .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                .overlay { Rectangle().strokeBorder(Color(.separatorColor), lineWidth: 1) }
             Text("\(index + 1)")
                 .font(.caption)
-                .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                .foregroundStyle(.secondary)
+        }
+        .padding(5)
+        .overlay {
+            RoundedRectangle(cornerRadius: 7)
+                .strokeBorder(Color.accentColor, lineWidth: 3)
+                .opacity(isSelected ? 1 : 0)
         }
     }
 
