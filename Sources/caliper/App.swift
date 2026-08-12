@@ -211,49 +211,47 @@ struct PageList: View {
     /// A List, not a stack: it draws macOS's own selection and gives the arrow keys
     /// page navigation for free.
     var body: some View {
-        List(selection: $doc.selectedPageID) {
-            ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
-                thumbnail(index: index, page: page)
-                    .tag(page.id)
-                    .listRowSeparator(.hidden)
-                    .help(page.name)
+        // Measured outside the List on purpose. Inside, the width drops when the
+        // scroller appears, which would change every row's height, which changes
+        // whether a scroller is needed — the loop that aborted the app.
+        GeometryReader { column in
+            List(selection: $doc.selectedPageID) {
+                ForEach(Array(doc.pages.enumerated()), id: \.element.id) { index, page in
+                    thumbnail(index: index, page: page, column: column.size.width)
+                        .tag(page.id)
+                        .listRowSeparator(.hidden)
+                        .help(page.name)
+                }
             }
-        }
-        .listStyle(.sidebar)
-        .onChange(of: doc.selectedPageID) { _, _ in
-            doc.selectedSegmentID = nil
-            doc.fitZoom()
+            .listStyle(.sidebar)
+            .onChange(of: doc.selectedPageID) { _, _ in
+                doc.selectedSegmentID = nil
+                doc.fitZoom()
+            }
         }
     }
 
-    /// aspectRatio + maxWidth, not a measured box: the page follows the column as it
-    /// is dragged, with no geometry to go stale.
     /// Radii stay concentric: the page rounds by the selection's radius less the
     /// gap between them, so the two curves run parallel.
     private static let selectionRadius: CGFloat = 9
     private static let inset: CGFloat = 4
-    /// Row height follows the page's shape but is measured from a fixed reference
-    /// width, never the live column: a height that tracks the column lets the
-    /// scroller's own appearance change the width again, and that loop never settles.
-    private static let referenceWidth: CGFloat = 185
-    private static let heightRange: ClosedRange<CGFloat> = 70...260
+    /// Room the List keeps for its own margins and a legacy scroller, so the card
+    /// never needs width the scroller might take.
+    private static let columnChrome: CGFloat = 34
 
-    private func thumbnail(index: Int, page: Page) -> some View {
+    private func thumbnail(index: Int, page: Page, column: CGFloat) -> some View {
         let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
         let ratio = page.thumbnail.size.width / max(page.thumbnail.size.height, 1)
-        let height = min(max(Self.referenceWidth / ratio, Self.heightRange.lowerBound),
-                         Self.heightRange.upperBound)
+        let width = max(40, column - Self.columnChrome)
         return VStack(spacing: 4) {
             // Colour first, image as an overlay: a resizable Image carries the page's
             // natural size into layout, and squeezing that inside a split view loops
             // AppKit's constraint solver until it aborts.
             Color.white
-                .aspectRatio(ratio, contentMode: .fit)
                 .overlay { Image(nsImage: page.thumbnail).resizable().interpolation(.high) }
                 .clipShape(corner)
                 .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
-                .frame(maxWidth: .infinity, maxHeight: height)
-                .frame(height: height)
+                .frame(width: width, height: width / ratio)
             Text("\(index + 1)").font(.caption)
         }
         .padding(Self.inset)
