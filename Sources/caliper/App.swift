@@ -232,6 +232,9 @@ struct PageList: View {
     /// gap between them, so the two curves run parallel.
     private static let selectionRadius: CGFloat = 9
     private static let inset: CGFloat = 4
+    /// Constant, and that matters: a row whose height follows its width lets the
+    /// scroller's own appearance change the width again, and the loop never settles.
+    private static let pageHeight: CGFloat = 150
 
     private func thumbnail(index: Int, page: Page) -> some View {
         let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
@@ -245,7 +248,8 @@ struct PageList: View {
                 .overlay { Image(nsImage: page.thumbnail).resizable().interpolation(.high) }
                 .clipShape(corner)
                 .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: Self.pageHeight)
+                .frame(height: Self.pageHeight)
             Text("\(index + 1)").font(.caption)
         }
         .padding(Self.inset)
