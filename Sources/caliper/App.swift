@@ -237,7 +237,7 @@ struct PageList: View {
     private static let inset: CGFloat = 4
     /// Room the List keeps for its own margins and a legacy scroller, so the card
     /// never needs width the scroller might take.
-    private static let columnChrome: CGFloat = 34
+    private static let columnChrome: CGFloat = 42
 
     private func thumbnail(index: Int, page: Page, column: CGFloat) -> some View {
         let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
@@ -262,7 +262,7 @@ struct PageList: View {
                 .frame(maxWidth: .infinity)
             Text("\(index + 1)").font(.caption)
         }
-        .padding(.vertical, Self.inset)
+        .padding(Self.inset)
     }
 }
 
