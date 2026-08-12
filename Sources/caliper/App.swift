@@ -248,13 +248,21 @@ struct PageList: View {
             // natural size into layout, and squeezing that inside a split view loops
             // AppKit's constraint solver until it aborts.
             Color.white
-                .overlay { Image(nsImage: page.thumbnail).resizable().interpolation(.high) }
+                .overlay {
+                    Image(nsImage: page.thumbnail)
+                        .resizable()
+                        .interpolation(.high)
+                        .scaledToFit()
+                }
                 .clipShape(corner)
                 .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
-                .frame(width: width, height: width / ratio)
+                // Width from the row, so the card ends where the selection ends.
+                // Height from the column estimate, so no width can drive a height.
+                .frame(height: width / ratio)
+                .frame(maxWidth: .infinity)
             Text("\(index + 1)").font(.caption)
         }
-        .padding(Self.inset)
+        .padding(.vertical, Self.inset)
     }
 }
 
