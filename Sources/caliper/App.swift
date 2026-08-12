@@ -235,6 +235,8 @@ struct PageList: View {
     /// gap between them, so the two curves run parallel.
     private static let selectionRadius: CGFloat = 9
     private static let inset: CGFloat = 4
+    /// Two more than the sides: the List already leaves a gap left and right, none above.
+    private static let verticalInset: CGFloat = 6
     /// Room the List keeps for its own margins and a legacy scroller, so the card
     /// never needs width the scroller might take.
     private static let columnChrome: CGFloat = 42
@@ -262,7 +264,8 @@ struct PageList: View {
                 .frame(maxWidth: .infinity)
             Text("\(index + 1)").font(.caption)
         }
-        .padding(Self.inset)
+        .padding(.horizontal, Self.inset)
+        .padding(.vertical, Self.verticalInset)
     }
 }
 
