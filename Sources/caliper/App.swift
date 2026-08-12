@@ -232,13 +232,17 @@ struct PageList: View {
     /// gap between them, so the two curves run parallel.
     private static let selectionRadius: CGFloat = 9
     private static let inset: CGFloat = 4
-    /// Constant, and that matters: a row whose height follows its width lets the
-    /// scroller's own appearance change the width again, and the loop never settles.
-    private static let pageHeight: CGFloat = 150
+    /// Row height follows the page's shape but is measured from a fixed reference
+    /// width, never the live column: a height that tracks the column lets the
+    /// scroller's own appearance change the width again, and that loop never settles.
+    private static let referenceWidth: CGFloat = 185
+    private static let heightRange: ClosedRange<CGFloat> = 70...260
 
     private func thumbnail(index: Int, page: Page) -> some View {
         let corner = RoundedRectangle(cornerRadius: Self.selectionRadius - Self.inset)
         let ratio = page.thumbnail.size.width / max(page.thumbnail.size.height, 1)
+        let height = min(max(Self.referenceWidth / ratio, Self.heightRange.lowerBound),
+                         Self.heightRange.upperBound)
         return VStack(spacing: 4) {
             // Colour first, image as an overlay: a resizable Image carries the page's
             // natural size into layout, and squeezing that inside a split view loops
@@ -248,8 +252,8 @@ struct PageList: View {
                 .overlay { Image(nsImage: page.thumbnail).resizable().interpolation(.high) }
                 .clipShape(corner)
                 .overlay { corner.strokeBorder(Color(.separatorColor), lineWidth: 1) }
-                .frame(maxWidth: .infinity, maxHeight: Self.pageHeight)
-                .frame(height: Self.pageHeight)
+                .frame(maxWidth: .infinity, maxHeight: height)
+                .frame(height: height)
             Text("\(index + 1)").font(.caption)
         }
         .padding(Self.inset)
