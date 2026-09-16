@@ -1,0 +1,30 @@
+name: CI
+
+# Build-only validation. There is no test target — SPM cannot link tests against
+# an executable target — so this proves the app compiles and bundles, no more.
+# --product caliper keeps the stitchlab development lab, and the OCCT dependency
+# it alone needs, out of the build.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    name: Build (unsigned)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Build
+        run: swift build -c release --product caliper
+
+      - name: Bundle
+        run: ./bundle.sh release
+
+      - name: Verify the bundle
+        run: |
+          set -euo pipefail
+          test -f .build/Caliper.app/Contents/Resources/AppIcon.icns
+          id=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" .build/Caliper.app/Contents/Info.plist)
+          [ "$id" = "dev.gustaf.caliper" ] || { echo "CFBundleIdentifier is '$id'"; exit 1; }

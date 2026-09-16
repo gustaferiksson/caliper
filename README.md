@@ -6,11 +6,19 @@ Measure real-world distances on images and PDFs. A native macOS SwiftUI proof of
 
 Preview, but with a ruler.
 
-## Use
+## Install
+
+```sh
+brew install --cask gustaferiksson/tap/caliper
+```
+
+Or run it from source:
 
 ```sh
 ./run.sh
 ```
+
+## Use
 
 1. Drop images or PDFs on the window, or press ⌘O. A PDF adds one page per page.
 2. Drag on the image to draw a measurement. There is only one mode.

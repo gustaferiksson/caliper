@@ -6,6 +6,12 @@ import UniformTypeIdentifiers
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let doc = Document()
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+#if !DEBUG
+        AppUpdater.check(manual: false)
+#endif
+    }
+
     /// Measurements live only in memory until a save, so quitting dirty must ask.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard doc.dirty else { return .terminateNow }
@@ -40,6 +46,9 @@ struct CaliperApp: App {
         // Wide enough that the toolbar never collapses into the » overflow menu.
         .defaultSize(width: 1180, height: 780)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { AppUpdater.check(manual: true) }
+            }
             CommandGroup(replacing: .saveItem) {
                 Button("Save Measurements") { doc.saveNow() }
                     .keyboardShortcut("s")
