@@ -1,6 +1,12 @@
 import AppKit
 
 enum AppUpdater {
+    static let checksAutomaticallyKey = "ChecksForUpdatesAutomatically"
+
+    static func registerDefaults() {
+        UserDefaults.standard.register(defaults: [checksAutomaticallyKey: true])
+    }
+
     private static let latestAPI =
         URL(string: "https://api.github.com/repos/gustaferiksson/caliper/releases/latest")!
 

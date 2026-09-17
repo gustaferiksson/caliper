@@ -7,8 +7,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let doc = Document()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AppUpdater.registerDefaults()
 #if !DEBUG
-        AppUpdater.check(manual: false)
+        if UserDefaults.standard.bool(forKey: AppUpdater.checksAutomaticallyKey) {
+            AppUpdater.check(manual: false)
+        }
 #endif
     }
 
@@ -36,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct CaliperApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @AppStorage(AppUpdater.checksAutomaticallyKey) private var checksAutomatically = true
     private var doc: Document { delegate.doc }
 
     var body: some Scene {
@@ -48,6 +52,7 @@ struct CaliperApp: App {
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { AppUpdater.check(manual: true) }
+                Toggle("Check for updates automatically", isOn: $checksAutomatically)
             }
             CommandGroup(replacing: .saveItem) {
                 Button("Save Measurements") { doc.saveNow() }
